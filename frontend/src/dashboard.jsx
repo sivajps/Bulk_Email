@@ -1,27 +1,15 @@
-import React, { useState, useRef } from 'react';
-import { Home, Inbox, Edit3, Undo2, Redo2, Bold, Italic, Underline, AlignLeft, List, FileSpreadsheet, ListOrdered, Indent, Outdent, Quote, Link2, Image, Clock, Trash2, Paperclip } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Home, Inbox, Edit3, Undo2, Redo2, Bold, Italic, Underline, AlignLeft, List, FileSpreadsheet, ListOrdered, Indent, Outdent, Quote, Link2, Image, Clock, Trash2, Paperclip, CheckCircle, XCircle, Clock as ClockIcon, Send, Settings } from 'lucide-react';
 import './dashboard.css';
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('Home');
-
+  const [activeTab, setActiveTab] = useState('Inbox');
+  const [isConfigured, setIsConfigured] = useState(false);
   const menuItems = [
-    { name: 'Home', icon: Home },
     { name: 'Inbox', icon: Inbox },
-    { name: 'Compose', icon: Edit3 }
+    { name: 'Compose', icon: Edit3 },
+    { name: 'Configure', icon: Settings }
   ];
-
-  const StatusCard = ({ icon, title, count, colorClass }) => (
-    <div className="status-card">
-      <div className="status-header">
-        <div className={`status-icon ${colorClass}`}>
-          {icon}
-        </div>
-        <span className="status-title">{title}</span>
-      </div>
-      <div className="status-count">{count}</div>
-    </div>
-  );
 
   return (
     <div className="dashboard">
@@ -33,44 +21,13 @@ const Dashboard = () => {
             <h2 className="page-title">{activeTab}</h2>
           </div>
         </div>
-
         {/* Content */}
-        <div className={`content ${activeTab === 'Compose' ? 'content-full' : 'content-padded'}`}>
-          {activeTab === 'Home' && (
-            <div className="status-grid">
-              <StatusCard
-                icon={<div className="status-dot status-dot-green"></div>}
-                title="Sent"
-                count="120"
-                colorClass="status-icon-green"
-              />
-              <StatusCard
-                icon={<div className="status-dot status-dot-red"></div>}
-                title="Failed"
-                count="5"
-                colorClass="status-icon-red"
-              />
-              <StatusCard
-                icon={<div className="status-dot status-dot-yellow"></div>}
-                title="Sending"
-                count="2"
-                colorClass="status-icon-yellow"
-              />
-            </div>
-          )}
-
-          {activeTab === 'Inbox' && (
-            <div className="empty-state">
-              <Inbox className="empty-state-icon" />
-              <h3 className="empty-state-title">Inbox</h3>
-              <p className="empty-state-text">Your messages will appear here.</p>
-            </div>
-          )}
-
-          {activeTab === 'Compose' && <EmailComposeWindow />}
+        <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
+          {activeTab === 'Inbox' && <InboxContent />}
+          {activeTab === 'Compose' && (isConfigured ? <EmailComposeWindow /> : <EmailConfiguration onConfigure={() => setIsConfigured(true)} />)}
+          {activeTab === 'Configure' && <EmailConfiguration onConfigure={() => setIsConfigured(true)} />}
         </div>
       </div>
-
       {/* Footer Navigation */}
       <div className="footer-nav">
         <nav className="footer-nav-container">
@@ -89,6 +46,287 @@ const Dashboard = () => {
             );
           })}
         </nav>
+      </div>
+    </div>
+  );
+};
+
+const EmailConfiguration = ({ onConfigure }) => {
+  const [email, setEmail] = useState('');
+  const [appPassword, setAppPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleConfigure = async (e) => {
+    e.preventDefault();
+    if (!email || !appPassword) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/configure-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, appPassword })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('✅ Email configured successfully!');
+        onConfigure();
+      } else {
+        alert('❌ Configuration failed: ' + result.error);
+      }
+    } catch (error) {
+      alert('❌ Network error: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="configuration-container">
+      <div className="configuration-card">
+        <h2 className="configuration-title">Configure Your Email for bulk email</h2>
+        <p className="configuration-subtitle">Send emails efficiently with your email account</p>
+
+        <div className="configuration-instructions">
+          <h3 className="instructions-title">Before you continue</h3>
+          <ol className="instructions-list">
+            <li>
+              <strong>Turn on 2-Step Verification</strong><br />
+              Enable 2-Step Verification in your Google Account settings
+            </li>
+            <li>
+              <strong>Generate App Password</strong><br />
+              Go to App Parameters and generate a new password
+            </li>
+            <li>
+              <strong>Select App & Device</strong><br />
+              Select Apps Mail and Device Other (BulkEmail)
+            </li>
+            <li>
+              <strong>Copy & Paste Password</strong><br />
+              Copy the 16-character app password and paste it in the field below
+            </li>
+          </ol>
+        </div>
+
+        <hr className="configuration-divider" />
+
+        <form onSubmit={handleConfigure} className="configuration-form">
+          <div className="configuration-field">
+            <label className="configuration-label">Your Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="configuration-input"
+              placeholder="your.email@gmail.com"
+              required
+            />
+          </div>
+
+          <div className="configuration-field">
+            <label className="configuration-label">App Password</label>
+            <input
+              type="password"
+              value={appPassword}
+              onChange={(e) => setAppPassword(e.target.value)}
+              className="configuration-input"
+              placeholder="16-character app password"
+              required
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="configuration-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Configuring...' : 'Configure'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Inbox Content Component
+const InboxContent = () => {
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [emailHistory, setEmailHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch email history from API
+  useEffect(() => {
+    const fetchEmailHistory = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('http://localhost:5000/api/email-history');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch email history');
+        }
+        
+        const data = await response.json();
+        setEmailHistory(data.emails || []);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching email history:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmailHistory();
+  }, []);
+
+  const filteredEmails = selectedFilter === 'all' 
+    ? emailHistory 
+    : emailHistory.filter(email => email.status === selectedFilter);
+
+  // Always show status indicators even when no emails
+  const statusCounts = {
+    sent: emailHistory.filter(email => email.status === 'sent').length,
+    failed: emailHistory.filter(email => email.status === 'failed').length,
+    sending: emailHistory.filter(email => email.status === 'sending').length,
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'sent': return <CheckCircle size={16} color="#10b981" />;
+      case 'failed': return <XCircle size={16} color="#ef4444" />;
+      case 'sending': return <ClockIcon size={16} color="#f59e0b" />;
+      default: return null;
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'sent': return 'Sent';
+      case 'failed': return 'Failed';
+      case 'sending': return 'Sending';
+      default: return '';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="inbox-container">
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Loading email history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inbox-container">
+      {/* Status Cards */}
+      <div className="status-grid">
+        <div className="status-card">
+          <div className="status-header">
+            <div className="status-icon status-icon-green">
+              <Send size={20} color="#10b981" />
+            </div>
+            <span className="status-title">Sent</span>
+          </div>
+          <div className="status-count">{statusCounts.sent}</div>
+        </div>
+        <div className="status-card">
+          <div className="status-header">
+            <div className="status-icon status-icon-red">
+              <XCircle size={20} color="#ef4444" />
+            </div>
+            <span className="status-title">Failed</span>
+          </div>
+          <div className="status-count">{statusCounts.failed}</div>
+        </div>
+        <div className="status-card">
+          <div className="status-header">
+            <div className="status-icon status-icon-yellow">
+              <ClockIcon size={20} color="#f59e0b" />
+            </div>
+            <span className="status-title">Sending</span>
+          </div>
+          <div className="status-count">{statusCounts.sending}</div>
+        </div>
+      </div>
+
+      {/* Email History */}
+      <div className="email-history">
+        <div className="email-history-header">
+          <h3 className="email-history-title">Email History</h3>
+          <div className="email-history-filters">
+            <button 
+              className={`filter-btn ${selectedFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedFilter('all')}
+            >
+              All
+            </button>
+            <button 
+              className={`filter-btn ${selectedFilter === 'sent' ? 'active' : ''}`}
+              onClick={() => setSelectedFilter('sent')}
+            >
+              Sent
+            </button>
+            <button 
+              className={`filter-btn ${selectedFilter === 'failed' ? 'active' : ''}`}
+              onClick={() => setSelectedFilter('failed')}
+            >
+              Failed
+            </button>
+            <button 
+              className={`filter-btn ${selectedFilter === 'sending' ? 'active' : ''}`}
+              onClick={() => setSelectedFilter('sending')}
+            >
+              Sending
+            </button>
+          </div>
+        </div>
+
+        {emailHistory.length === 0 ? (
+          <div className="empty-state">
+            <Inbox className="empty-state-icon" />
+            <h3 className="empty-state-title">No Emails yet</h3>
+            <p className="empty-state-text">
+              You haven't sent any emails yet. Compose your first email to get started!
+            </p>
+          </div>
+        ) : filteredEmails.length > 0 ? (
+          <div className="email-list">
+            {filteredEmails.map(email => (
+              <div key={email.id} className="email-item">
+                <div className="email-item-main">
+                  <h4 className="email-subject">{email.subject}</h4>
+                  <div className="email-details">
+                    <span className="email-recipients">{email.recipients} recipients</span>
+                    <span className="email-date">{new Date(email.date).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="email-status">
+                  {getStatusIcon(email.status)}
+                  <span className="status-text">{getStatusText(email.status)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Inbox className="empty-state-icon" />
+            <h3 className="empty-state-title">No emails found</h3>
+            <p className="empty-state-text">
+              No {selectedFilter} emails found.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
