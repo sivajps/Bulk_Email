@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, Inbox, Edit3, Undo2, Redo2, Bold, Italic, Underline, AlignLeft, List, FileSpreadsheet, ListOrdered, Indent, Outdent, Quote, Link2, Image, Clock, Trash2, Paperclip, CheckCircle, XCircle, Clock as ClockIcon, Send, Settings } from 'lucide-react';
+import { Home, Inbox, Edit3, Undo2, Redo2, Bold, Italic, Underline, AlignLeft, List, FileSpreadsheet, ListOrdered, Indent, Outdent, Quote, Link2, Image, Clock, Trash2, Paperclip, CheckCircle, XCircle, Clock as ClockIcon, Send, Settings, X } from 'lucide-react';
 import './dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Inbox');
+  const [showConfigPopup, setShowConfigPopup] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const menuItems = [
     { name: 'Inbox', icon: Inbox },
@@ -11,8 +12,51 @@ const Dashboard = () => {
     { name: 'Configure', icon: Settings }
   ];
 
+  // Check if email is configured (in a real app, this would come from an API or localStorage)
+  useEffect(() => {
+    const configured = localStorage.getItem('emailConfigured');
+    setIsConfigured(configured === 'true');
+  }, []);
+
+  // Close popup when navigating to Configure tab
+  useEffect(() => {
+    if (activeTab === 'Configure') {
+      setShowConfigPopup(false);
+    }
+  }, [activeTab]);
+
+  // Close popup when navigating to Configure tab
+  useEffect(() => {
+    if (activeTab === 'Configure') {
+      setShowConfigPopup(false);
+    }
+  }, [activeTab]);
+
+  const handleConfigure = (email, password) => {
+    // In a real app, you would send this to your backend API
+    console.log("Configuring email:", email);
+    
+    // For demo purposes, just set as configured
+    setIsConfigured(true);
+    localStorage.setItem('emailConfigured', 'true');
+    setShowConfigPopup(false);
+  };
+
+  const handleConfigureRedirect = () => {
+    setActiveTab('Configure');
+    // The useEffect above will handle closing the popup
+  };
+
   return (
     <div className="dashboard">
+      {/* Configuration Popup */}
+      {showConfigPopup && (
+        <ConfigPopup 
+          onConfigure={handleConfigureRedirect}
+          onClose={() => setShowConfigPopup(false)} 
+        />
+      )}
+
       {/* Main Content */}
       <div className="main-content">
         {/* Header */}
@@ -24,8 +68,8 @@ const Dashboard = () => {
         {/* Content */}
         <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
           {activeTab === 'Inbox' && <InboxContent />}
-          {activeTab === 'Compose' && (isConfigured ? <EmailComposeWindow /> : <EmailConfiguration onConfigure={() => setIsConfigured(true)} />)}
-          {activeTab === 'Configure' && <EmailConfiguration onConfigure={() => setIsConfigured(true)} />}
+          {activeTab === 'Compose' && <EmailComposeWindow isConfigured={isConfigured} showConfigPopup={() => setShowConfigPopup(true)} />}
+          {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
         </div>
       </div>
       {/* Footer Navigation */}
@@ -51,38 +95,79 @@ const Dashboard = () => {
   );
 };
 
+// Configuration Popup Component
+const ConfigPopup = ({ onConfigure, onClose }) => {
+  return (
+    <div className="config-popup-overlay">
+      <div className="config-popup-simple">
+        <div className="config-popup-header">
+          <h2>Configure Your Email</h2>
+          <button className="config-popup-close" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="config-popup-content-simple">
+          <p className="config-popup-message">
+            You need to configure your email before sending messages.
+          </p>
+          <button 
+            className="config-button-simple"
+            onClick={onConfigure}
+          >
+            Go to Configuration
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EmailConfiguration = ({ onConfigure }) => {
   const [email, setEmail] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleConfigure = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!email || !appPassword) {
-      alert('Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
-
+    
     setIsLoading(true);
+    setError('');
+    setSuccess('');
+    
     try {
-      const response = await fetch('http://localhost:5000/api/configure-email', {
+      const response = await fetch('http://localhost:5000/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, appPassword })
+        body: JSON.stringify({
+          email: email,
+          app_password: appPassword
+        })
       });
-
-      const result = await response.json();
       
-      if (result.success) {
-        alert('✅ Email configured successfully!');
-        onConfigure();
+      const data = await response.json();
+      
+      if (data.verify) {
+        setSuccess(data.message || 'Email configured successfully!');
+        // Store configuration in localStorage
+        localStorage.setItem('emailConfigured', 'true');
+        localStorage.setItem('userEmail', email);
+        // Call parent callback if needed
+        if (onConfigure) onConfigure(email, appPassword);
       } else {
-        alert('❌ Configuration failed: ' + result.error);
+        setError(data.message || 'Failed to verify email configuration');
       }
-    } catch (error) {
-      alert('❌ Network error: ' + error.message);
+    } catch (err) {
+      setError('Network error: Could not connect to server');
+      console.error('Configuration error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +203,10 @@ const EmailConfiguration = ({ onConfigure }) => {
 
         <hr className="configuration-divider" />
 
-        <form onSubmit={handleConfigure} className="configuration-form">
+        <form onSubmit={handleSubmit} className="configuration-form">
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
+          
           <div className="configuration-field">
             <label className="configuration-label">Your Email</label>
             <input
@@ -128,6 +216,7 @@ const EmailConfiguration = ({ onConfigure }) => {
               className="configuration-input"
               placeholder="your.email@gmail.com"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -140,6 +229,7 @@ const EmailConfiguration = ({ onConfigure }) => {
               className="configuration-input"
               placeholder="16-character app password"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -148,7 +238,7 @@ const EmailConfiguration = ({ onConfigure }) => {
             className="configuration-button"
             disabled={isLoading}
           >
-            {isLoading ? 'Configuring...' : 'Configure'}
+            {isLoading ? 'Verifying...' : 'Configure'}
           </button>
         </form>
       </div>
@@ -333,7 +423,7 @@ const InboxContent = () => {
 };
 
 // Email Compose Component
-const EmailComposeWindow = () => {
+const EmailComposeWindow = ({ isConfigured, showConfigPopup }) => {
   const [to, setTo] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [cc, setCc] = useState("");
@@ -405,6 +495,11 @@ const EmailComposeWindow = () => {
   };
 
   const sendBulkEmail = async () => {
+    if (!isConfigured) {
+      showConfigPopup();
+      return;
+    }
+
     if (to.length === 0) {
       alert('⚠️ Please add recipients or upload Excel file with email addresses');
       return;

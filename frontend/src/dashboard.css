@@ -979,3 +979,298 @@ html, body, #root {
   background: #9ca3af;
   cursor: not-allowed;
 }
+
+/* Configuration Popup Styles */
+.config-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.config-popup {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.config-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.config-popup-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.config-popup-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.config-popup-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.config-popup-content {
+  padding: 24px;
+}
+
+.config-popup-subtitle {
+  color: #6b7280;
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.config-instructions {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.config-instructions h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 18px;
+  color: #374151;
+}
+
+.config-instructions ol {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.config-instructions li {
+  margin-bottom: 16px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-field label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.config-field input {
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+}
+
+.config-field input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.config-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.config-button:hover {
+  background: #2563eb;
+}
+
+/* Configuration Page Styles */
+.configuration-container {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.configuration-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.configuration-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.configuration-subtitle {
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.configuration-instructions {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.instructions-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #374151;
+}
+
+.instructions-list {
+  padding-left: 20px;
+}
+
+.instructions-list li {
+  margin-bottom: 16px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.configuration-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 24px 0;
+}
+
+.configuration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.configuration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.configuration-label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.configuration-input {
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+}
+
+.configuration-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.configuration-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.configuration-button:hover {
+  background: #2563eb;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .config-popup {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .config-popup-header {
+    padding: 16px 20px;
+  }
+  
+  .config-popup-content {
+    padding: 20px;
+  }
+  
+  .configuration-container {
+    padding: 16px;
+  }
+}
+
+/* Simplified Configuration Popup Styles */
+.config-popup-simple {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.config-popup-content-simple {
+  padding: 20px;
+  text-align: center;
+}
+
+.config-popup-message {
+  margin-bottom: 20px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.config-button-simple {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.config-button-simple:hover {
+  background: #2563eb;
+}
