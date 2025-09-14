@@ -23,58 +23,54 @@ const sendBulkEmail = async (emailData, setIsLoading, showConfigPopup, isConfigu
 
   try {
     setIsLoading(true);
-    
+
     const response = await fetch('http://localhost:5000/send_bulk', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(emailData)
+      body: JSON.stringify(emailData),
     });
 
-    // Check if response is JSON before parsing
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       throw new Error('Server returned non-JSON response. Please check if the endpoint is working.');
     }
 
     const result = await response.json();
-    
+
     if (result.success) {
-      // Calculate sent and failed counts from results
       const results = result.results || {};
       const sentCount = Object.values(results).filter(status => status.includes('sent')).length;
       const failedCount = Object.values(results).filter(status => status.includes('failed')).length;
-      
+
       return {
         success: true,
         data: result,
-        message: `✅ Bulk Email Sent Successfully!\n\n📧 Sent: ${sentCount} emails\n❌ Failed: ${failedCount} emails\n\nCheck details for individual results.`
+        message: `✅ Bulk Email Sent Successfully!\n\n📧 Sent: ${sentCount} emails\n❌ Failed: ${failedCount} emails\n\nCheck details in Inbox for individual results.`,
       };
     } else {
       return {
         success: false,
-        error: result.error || 'Failed to send emails'
+        error: result.message || 'Failed to send emails',
       };
     }
   } catch (error) {
     console.error('Email sending error:', error);
-    
-    // Provide more specific error messages
     if (error.message.includes('Failed to fetch')) {
       return {
         success: false,
-        error: 'Cannot connect to server. Please make sure the backend server is running on http://localhost:5000'
+        error: 'Cannot connect to server. Please make sure the backend server is running on http://localhost:5000',
       };
     } else if (error.message.includes('non-JSON')) {
       return {
         success: false,
-        error: 'Server endpoint not working properly. Please ensure the backend server is running.'
+        error: 'Server endpoint not working properly. Please ensure the backend server is running.',
       };
     } else {
       return {
         success: false,
-        error: 'Network error: ' + error.message
+        error: 'Network error: ' + error.message,
       };
     }
   } finally {
@@ -91,34 +87,28 @@ const Dashboard = () => {
   const menuItems = [
     { name: 'Inbox', icon: Inbox },
     { name: 'Compose', icon: Edit3 },
-    { name: 'Configure', icon: Settings }
+    { name: 'Configure', icon: Settings },
   ];
 
-    useEffect(() => {
+  useEffect(() => {
     const checkBackendConnection = async () => {
       try {
         const response = await fetch('http://localhost:5000/');
-        if (response.ok) {
-          setIsBackendConnected(true);
-        } else {
-          setIsBackendConnected(false);
-        }
+        setIsBackendConnected(response.ok);
       } catch (error) {
         console.error('Backend not available:', error);
         setIsBackendConnected(false);
       }
     };
-    
+
     checkBackendConnection();
   }, []);
 
-  // Check if email is configured
   useEffect(() => {
     const configured = localStorage.getItem('emailConfigured');
     setIsConfigured(configured === 'true');
   }, []);
 
-  // Close popup when navigating to Configure tab
   useEffect(() => {
     if (activeTab === 'Configure') {
       setShowConfigPopup(false);
@@ -138,7 +128,13 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* Configuration Popup */}
+      {!isBackendConnected && (
+        <div className="backend-error">
+          <AlertCircle size={20} color="#ef4444" />
+          <span>Cannot connect to backend server. Please ensure it is running on http://localhost:5000</span>
+        </div>
+      )}
+
       {showConfigPopup && (
         <ConfigPopup 
           onConfigure={handleConfigureRedirect}
@@ -146,15 +142,12 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Main Content */}
       <div className="main-content">
-        {/* Header */}
         <div className="header">
           <div className="header-content">
             <h2 className="page-title">{activeTab}</h2>
           </div>
         </div>
-        {/* Content */}
         <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
           {activeTab === 'Inbox' && <InboxContent />}
           {activeTab === 'Compose' && (
@@ -167,7 +160,6 @@ const Dashboard = () => {
           {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
         </div>
       </div>
-      {/* Footer Navigation */}
       <div className="footer-nav">
         <nav className="footer-nav-container">
           {menuItems.map((item) => {
@@ -244,18 +236,20 @@ const EmailConfiguration = ({ onConfigure }) => {
         },
         body: JSON.stringify({
           email: email,
-          app_password: appPassword
-        })
+          app_password: appPassword,
+        }),
       });
-      
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
       const data = await response.json();
       
       if (data.verify) {
         setSuccess(data.message || 'Email configured successfully!');
-        // Store configuration in localStorage
         localStorage.setItem('emailConfigured', 'true');
         localStorage.setItem('userEmail', email);
-        // Call parent callback if needed
         if (onConfigure) onConfigure(email, appPassword);
       } else {
         setError(data.message || 'Failed to verify email configuration');
@@ -279,15 +273,15 @@ const EmailConfiguration = ({ onConfigure }) => {
           <ol className="instructions-list">
             <li>
               <strong>Turn on 2-Step Verification</strong><br />
-              <p class="text-sm text-gray-600">Enable 2-Step Verification in your <a href="https://myaccount.google.com/security" target="_blank" class="text-blue-600 hover:underline font-medium">Google Account settings</a></p>
+              <p className="text-sm text-gray-600">Enable 2-Step Verification in your <a href="https://myaccount.google.com/security" target="_blank" className="text-blue-600 hover:underline font-medium">Google Account settings</a></p>
             </li>
             <li>
               <strong>Generate App Password</strong><br />
-              <p class="text-sm text-gray-600">Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-600 hover:underline font-medium">App Passwords</a> and generate a new password</p>
+              <p className="text-sm text-gray-600">Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-blue-600 hover:underline font-medium">App Passwords</a> and generate a new password</p>
             </li>
             <li>
               <strong>Select App & Device</strong><br />
-              Select Apps Mail and Device Other (BulkEmail)
+              Select Apps: Mail and Device: Other (BulkEmail)
             </li>
             <li>
               <strong>Copy & Paste Password</strong><br />
@@ -341,14 +335,12 @@ const EmailConfiguration = ({ onConfigure }) => {
   );
 };
 
-// Inbox Content Component
 const InboxContent = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [emailHistory, setEmailHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch email history from API
   useEffect(() => {
     const fetchEmailHistory = async () => {
       try {
@@ -360,7 +352,11 @@ const InboxContent = () => {
         }
         
         const data = await response.json();
-        setEmailHistory(data.emails || []);
+        if (data.success) {
+          setEmailHistory(data.emails || []);
+        } else {
+          throw new Error(data.message || 'Failed to fetch email history');
+        }
       } catch (err) {
         setError(err.message);
         console.error('Error fetching email history:', err);
@@ -376,7 +372,6 @@ const InboxContent = () => {
     ? emailHistory 
     : emailHistory.filter(email => email.status === selectedFilter);
 
-  // Always show status indicators even when no emails
   const statusCounts = {
     sent: emailHistory.filter(email => email.status === 'sent').length,
     failed: emailHistory.filter(email => email.status === 'failed').length,
@@ -412,9 +407,19 @@ const InboxContent = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="inbox-container">
+        <div className="error-state">
+          <AlertCircle size={20} color="#ef4444" />
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="inbox-container">
-      {/* Status Cards */}
       <div className="status-grid">
         <div className="status-card">
           <div className="status-header">
@@ -445,7 +450,6 @@ const InboxContent = () => {
         </div>
       </div>
 
-      {/* Email History */}
       <div className="email-history">
         <div className="email-history-header">
           <h3 className="email-history-title">Email History</h3>
@@ -517,21 +521,19 @@ const InboxContent = () => {
   );
 };
 
-// Email Compose Component
 const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
   const [to, setTo] = useState([]);
-  const [inputValue, setInputValue] = useState("");
-  const [cc, setCc] = useState("");
-  const [bcc, setBcc] = useState("");
-  const [subject, setSubject] = useState("");
+  const [inputValue, setInputValue] = useState('');
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [subject, setSubject] = useState('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [fontFamily, setFontFamily] = useState("Sans Serif");
+  const [fontFamily, setFontFamily] = useState('Sans Serif');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const editorRef = useRef(null);
 
-  // Validate email format
   const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -544,7 +546,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       newErrors.recipients = 'Please add recipients or upload Excel file with email addresses';
     }
 
-    // Validate each email in the to list
     const invalidEmails = to.filter(email => !isValidEmail(email));
     if (invalidEmails.length > 0) {
       newErrors.invalidEmails = `Invalid email format: ${invalidEmails.join(', ')}`;
@@ -562,7 +563,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     return Object.keys(newErrors).length === 0;
   };
 
-  // Add a useEffect to automatically clear the recipients error when emails are added:
   useEffect(() => {
     if (to.length > 0 && errors.recipients) {
       setErrors(prev => ({ ...prev, recipients: undefined }));
@@ -575,23 +575,22 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   };
 
   const insertLink = () => {
-    const url = prompt("Enter the link URL:");
-    if (url) execCommand("createLink", url);
+    const url = prompt('Enter the link URL:');
+    if (url) execCommand('createLink', url);
   };
 
   const insertImage = () => {
-    const url = prompt("Enter the image URL:");
-    if (url) execCommand("insertImage", url);
+    const url = prompt('Enter the image URL:');
+    if (url) execCommand('insertImage', url);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === "," || e.key === " ") {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
       e.preventDefault();
-      const email = inputValue.trim().replace(/[,\s]+$/, "");
+      const email = inputValue.trim().replace(/[,\s]+$/, '');
       if (email && !to.includes(email)) {
         if (isValidEmail(email)) {
           setTo([...to, email]);
-          // Clear both recipient errors when a valid email is added
           setErrors(prev => ({ 
             ...prev, 
             recipients: undefined, 
@@ -604,7 +603,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           }));
         }
       }
-      setInputValue("");
+      setInputValue('');
     }
   };
 
@@ -612,18 +611,13 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     const newTo = to.filter((e) => e !== email);
     setTo(newTo);
     
-    // If removing the last email, show the recipients error
     if (newTo.length === 0) {
       setErrors(prev => ({ 
         ...prev, 
         recipients: 'Please add recipients or upload Excel file with email addresses' 
       }));
     } else {
-      // If there are still emails, clear the recipients error but keep other errors
-      setErrors(prev => ({ 
-        ...prev, 
-        recipients: undefined 
-      }));
+      setErrors(prev => ({ ...prev, recipients: undefined }));
     }
   };
 
@@ -631,7 +625,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     const validExtensions = ['.xlsx', '.xls', '.csv'];
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
     
@@ -647,10 +640,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       setIsLoading(true);
       const response = await fetch('http://localhost:5000/api/upload-excel', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
-      // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error('Server returned non-JSON response. Please check if the endpoint is working.');
@@ -685,7 +677,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           alert(`⚠️ ${invalidEmails.length} invalid emails were skipped.`);
         }
       } else {
-        alert('❌ Error reading Excel file: ' + (result.error || 'Unknown error'));
+        alert('❌ Error reading Excel file: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -699,7 +691,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       }
     } finally {
       setIsLoading(false);
-      // Clear the file input
       e.target.value = '';
     }
   };
@@ -714,7 +705,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       cc: cc || '',
       bcc: bcc || '',
       subject: subject,
-      content: editorRef.current.innerHTML
+      content: editorRef.current.innerHTML,
     };
 
     const result = await sendBulkEmail(emailData, setIsLoading, showConfigPopup, isConfigured);
@@ -722,7 +713,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     if (result.success) {
       alert(result.message);
       
-      // Reset form
       setTo([]);
       setSubject('');
       setCc('');
@@ -742,20 +732,16 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     const file = e.target.files[0];
     if (file) {
       alert(`📎 File "${file.name}" attached successfully!`);
+      // Note: File attachment is not sent to backend yet
     }
   };
 
   const scheduleSend = () => {
-    if (to.length === 0) {
-      setErrors({ recipients: 'Please add recipients first' });
-      return;
-    }
-    
     if (!validateForm()) {
       return;
     }
     
-    alert("⏰ Email scheduled to be sent in 5 seconds!");
+    alert('⏰ Email scheduled to be sent in 5 seconds!');
     setTimeout(() => {
       handleSendBulkEmail();
     }, 5000);
@@ -763,14 +749,13 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
 
   return (
     <div className="email-compose-container">
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="loading-overlay">
           Processing... Please wait
         </div>
       )}
 
-      {(errors.recipients || errors.invalidEmails) && (
+      {(errors.recipients || errors.invalidEmails || errors.subject || errors.content) && (
         <div className="compose-error-container">
           {errors.recipients && (
             <div className="compose-error-message">
@@ -778,22 +763,32 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <span>{errors.recipients}</span>
             </div>
           )}
-          {errors.invalidEmails && !errors.recipients && (
+          {errors.invalidEmails && (
             <div className="compose-error-message">
               <AlertCircle size={16} />
               <span>{errors.invalidEmails}</span>
             </div>
           )}
+          {errors.subject && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.subject}</span>
+            </div>
+          )}
+          {errors.content && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.content}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Email Fields */}
       <div className="compose-fields">
-        {/* To Field */}
         <div className="compose-field-row">
           <label className="compose-field-label">To</label>
           <div className="compose-field-container">
-            <div className={`compose-chips-input ${errors.recipients ? 'error' : ''}`}>
+            <div className={`compose-chips-input ${errors.recipients || errors.invalidEmails ? 'error' : ''}`}>
               {to.map((email, i) => (
                 <span key={i} className="compose-email-chip">
                   {email}
@@ -822,7 +817,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
-                style={{ display: "none" }}
+                style={{ display: 'none' }}
                 onChange={handleExcelUpload}
                 disabled={isLoading}
               />
@@ -847,22 +842,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           </div>
         </div>
 
-        {/* Error messages */}
-        {errors.recipients && (
-          <div className="compose-error-message">
-            <AlertCircle size={16} />
-            <span>{errors.recipients}</span>
-          </div>
-        )}
-        
-        {errors.invalidEmails && (
-          <div className="compose-error-message">
-            <AlertCircle size={16} />
-            <span>{errors.invalidEmails}</span>
-          </div>
-        )}
-
-        {/* Cc Field */}
         {showCc && (
           <div className="compose-field-row">
             <label className="compose-field-label">Cc</label>
@@ -877,7 +856,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           </div>
         )}
 
-        {/* Bcc Field */}
         {showBcc && (
           <div className="compose-field-row">
             <label className="compose-field-label">Bcc</label>
@@ -892,7 +870,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           </div>
         )}
 
-        {/* Subject Field */}
         <div className="compose-field-row">
           <label className="compose-field-label">Subject</label>
           <input
@@ -910,14 +887,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           />
         </div>
 
-        {errors.subject && (
-          <div className="compose-error-message">
-            <AlertCircle size={16} />
-            <span>{errors.subject}</span>
-          </div>
-        )}
-
-        {/* Recipients Count Display */}
         {to.length > 0 && (
           <div className="compose-field-row">
             <div className="recipients-count">
@@ -927,7 +896,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         )}
       </div>
 
-      {/* Content Area */}
       <div className="compose-content-area">
         <div
           ref={editorRef}
@@ -940,32 +908,17 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           }}
           style={{
             fontFamily:
-              fontFamily === "Serif"
-                ? "Georgia, serif"
-                : fontFamily === "Arial"
-                ? "Arial, sans-serif"
-                : fontFamily === "Times"
+              fontFamily === 'Serif'
+                ? 'Georgia, serif'
+                : fontFamily === 'Arial'
+                ? 'Arial, sans-serif'
+                : fontFamily === 'Times'
                 ? "'Times New Roman', serif"
-                : "system-ui, sans-serif",
+                : 'system-ui, sans-serif',
           }}
         />
       </div>
 
-      {errors.content && (
-        <div className="compose-error-message">
-          <AlertCircle size={16} />
-          <span>{errors.content}</span>
-        </div>
-      )}
-
-      {/* Formatting Toolbar */}
-      <div className="compose-formatting-toolbar">
-        <div className="compose-toolbar-content">
-          {/* ... (toolbar buttons remain the same) ... */}
-        </div>
-      </div>
-
-      {/* Bottom Toolbar */}
       <div className="compose-bottom-toolbar">
         <div className="compose-toolbar-left">
           <button 
@@ -973,7 +926,14 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
             onClick={handleSendBulkEmail}
             disabled={isLoading}
           >
-            {isLoading ? '⏳ Sending...' : 'Send'}
+            {isLoading ? 'Sending...' : 'Send'}
+          </button>
+          <button 
+            className="compose-send-button" 
+            onClick={scheduleSend}
+            disabled={isLoading}
+          >
+            Schedule Send
           </button>
 
           <div className="compose-attachment-buttons">
@@ -981,7 +941,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <Paperclip size={18} />
               <input 
                 type="file" 
-                style={{ display: "none" }} 
+                style={{ display: 'none' }} 
                 onChange={handleFileUpload} 
                 multiple 
                 disabled={isLoading}
