@@ -1,171 +1,191 @@
-import React, { useState, useRef } from "react";
-import {
-  Minus,
-  Maximize2,
-  X,
-  Undo2,
-  Redo2,
-  Bold,
-  Italic,
-  Underline,
-  AlignLeft,
-  List,
-  FileSpreadsheet,
-  ListOrdered,
-  Indent,
-  Outdent,
-  Quote,
-  Link2,
-  Image,
-  Clock,
-  Edit3,
-  Trash2,
-  Paperclip,
-} from "lucide-react";
-import * as XLSX from "xlsx";
-import "./compose.css";
+import React, { useState, useRef } from 'react';
+import { FileSpreadsheet, Paperclip, Clock, Trash2, Send, AlertCircle, Image, Edit3 } from 'lucide-react';
+import './compose.css';
 
-const EmailComposeWindow = () => {
-  const [to, setTo] = useState([]); // store as array
-  const [inputValue, setInputValue] = useState("");
-  const [cc, setCc] = useState("");
-  const [bcc, setBcc] = useState("");
-  const [subject, setSubject] = useState("");
+const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
+  const [excelFile, setExcelFile] = useState(null);
+  const [subject, setSubject] = useState('');
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [fontSize, setFontSize] = useState("Sans Serif");
+  const [signature, setSignature] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const editorRef = useRef(null);
 
-  // Execute commands for formatting
-  const execCommand = (command, value = null) => {
-    document.execCommand(command, false, value);
-    editorRef.current.focus();
-  };
+  const validateForm = () => {
+    const newErrors = {};
 
-  // Insert link
-  const insertLink = () => {
-    const url = prompt("Enter the link URL:");
-    if (url) execCommand("createLink", url);
-  };
-
-  // Schedule send
-  const scheduleSend = () => {
-    alert("Email scheduled to be sent in 5 seconds!");
-    setTimeout(() => {
-      alert("Email sent!");
-    }, 5000);
-  };
-
-  // Handle adding emails manually
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const email = inputValue.trim().replace(/,$/, "");
-      if (email && email.includes("@") && !to.includes(email)) {
-        setTo([...to, email]);
-      }
-      setInputValue("");
+    if (!excelFile) {
+      newErrors.excelFile = 'Please upload an Excel file with email addresses';
     }
+
+    if (!subject.trim()) {
+      newErrors.subject = 'Please enter email subject';
+    }
+
+    if (!editorRef.current?.innerHTML.trim() || editorRef.current.innerHTML === '<div><br></div>') {
+      newErrors.content = 'Please write email content';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  // Remove email chip
-  const removeEmail = (email) => {
-    setTo(to.filter((e) => e !== email));
-  };
-
-  // Handle Excel upload
   const handleExcelUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const emails = XLSX.utils
-        .sheet_to_json(sheet, { header: 1 })
-        .flat()
-        .filter((cell) => typeof cell === "string" && cell.includes("@"));
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
 
-      if (emails.length > 0) {
-        setTo((prev) => [...new Set([...prev, ...emails])]); // merge without duplicates
+    if (!validExtensions.includes(fileExtension)) {
+      setErrors(prev => ({ ...prev, excelFile: 'Please upload a valid Excel file (.xlsx, .xls) or CSV file' }));
+      return;
+    }
+
+    setExcelFile(file);
+    setErrors(prev => ({ ...prev, excelFile: undefined }));
+  };
+
+  const handleAttachmentUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAttachment(file);
+      alert(`📎 File "${file.name}" attached successfully!`);
+    }
+  };
+
+  const handleSendBulkEmail = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', excelFile);
+    formData.append('subject', subject);
+    const contentWithSignature = `${editorRef.current.innerHTML}<br><br>${signature}`;
+    formData.append('content', contentWithSignature);
+    if (cc) formData.append('cc', cc);
+    if (bcc) formData.append('bcc', bcc);
+    if (attachment) formData.append('attachment', attachment);
+
+    const result = await sendBulkEmail(formData, setIsLoading, showConfigPopup, isConfigured);
+
+    if (result.success) {
+      alert(result.message);
+      setExcelFile(null);
+      setSubject('');
+      setCc('');
+      setBcc('');
+      setAttachment(null);
+      setShowCc(false);
+      setShowBcc(false);
+      setErrors({});
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
       }
-    };
-    reader.readAsArrayBuffer(file);
+    } else {
+      alert('❌ ' + result.error);
+    }
+  };
+
+  const scheduleSend = () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    alert('⏰ Email scheduled to be sent in 5 seconds!');
+    setTimeout(() => {
+      handleSendBulkEmail();
+    }, 5000);
+  };
+
+  const insertImage = () => {
+    const url = prompt('Enter the image URL:');
+    if (url) document.execCommand('insertImage', false, url);
+  };
+
+  const applyFormatting = (command) => {
+    document.execCommand(command, false, null);
+    editorRef.current.focus();
+  };
+
+  const editSignature = () => {
+    const newSignature = prompt('Enter your email signature:', signature);
+    if (newSignature !== null) {
+      setSignature(newSignature);
+    }
   };
 
   return (
-    <div className="email-compose-window">
-      {/* Header */}
-      <div className="header">
-        <h3 className="header-title">New Message</h3>
-        <div className="header-controls">
-          <button className="control-button">
-            <Minus size={16} />
-          </button>
-          <button className="control-button">
-            <Maximize2 size={16} />
-          </button>
-          <button className="control-button">
-            <X size={16} />
-          </button>
+    <div className="email-compose-container">
+      {isLoading && (
+        <div className="loading-overlay">
+          Processing... Please wait
         </div>
-      </div>
+      )}
 
-      {/* Email Fields */}
-      <div className="email-fields">
-        {/* To Field */}
-        <div className="field-row">
-          <label className="field-label">To</label>
-          <div className="field-input-container">
-            <div className="chips-input">
-              {to.map((email, i) => (
-                <span key={i} className="email-chip">
-                  {email}
-                  <button
-                    type="button"
-                    className="remove-chip"
-                    onClick={() => removeEmail(email)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="field-input chip-input"
-                placeholder="Recipients"
-              />
+      {(errors.excelFile || errors.subject || errors.content) && (
+        <div className="compose-error-container">
+          {errors.excelFile && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.excelFile}</span>
             </div>
+          )}
+          {errors.subject && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.subject}</span>
+            </div>
+          )}
+          {errors.content && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.content}</span>
+            </div>
+          )}
+        </div>
+      )}
 
-            {/* Upload Excel button */}
-            <label className="cc-bcc-button excel-upload" title="Upload Excel">
-              <FileSpreadsheet size={20} color="green" />
+      <div className="compose-fields">
+        <div className="field-row">
+          <label className="field-label">Recipients <span className="required">*</span></label>
+          <div className="field-input-container">
+            <label className="excel-upload" title="Upload Excel with Email Addresses">
+              <FileSpreadsheet className="excel-icon" size={20} color="#059669" />
               <input
                 type="file"
-                accept=".xlsx,.xls"
-                style={{ display: "none" }}
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
                 onChange={handleExcelUpload}
+                disabled={isLoading}
               />
+              <span>{excelFile ? excelFile.name : 'Upload Excel File'}</span>
             </label>
 
             <div className="cc-bcc-buttons">
-              <button onClick={() => setShowCc(!showCc)} className="cc-bcc-button">
+              <button
+                onClick={() => setShowCc(!showCc)}
+                className={`cc-bcc-button ${showCc ? 'active' : ''}`}
+                disabled={isLoading}
+              >
                 Cc
               </button>
-              <button onClick={() => setShowBcc(!showBcc)} className="cc-bcc-button">
+              <button
+                onClick={() => setShowBcc(!showBcc)}
+                className={`cc-bcc-button ${showBcc ? 'active' : ''}`}
+                disabled={isLoading}
+              >
                 Bcc
               </button>
             </div>
           </div>
         </div>
 
-        {/* Cc Field */}
         {showCc && (
           <div className="field-row">
             <label className="field-label">Cc</label>
@@ -174,12 +194,12 @@ const EmailComposeWindow = () => {
               value={cc}
               onChange={(e) => setCc(e.target.value)}
               className="field-input full-width"
-              placeholder="Carbon copy"
+              placeholder="Carbon copy (separate with commas)"
+              disabled={isLoading}
             />
           </div>
         )}
 
-        {/* Bcc Field */}
         {showBcc && (
           <div className="field-row">
             <label className="field-label">Bcc</label>
@@ -188,129 +208,134 @@ const EmailComposeWindow = () => {
               value={bcc}
               onChange={(e) => setBcc(e.target.value)}
               className="field-input full-width"
-              placeholder="Blind carbon copy"
+              placeholder="Blind carbon copy (separate with commas)"
+              disabled={isLoading}
             />
           </div>
         )}
 
-        {/* Subject Field */}
         <div className="field-row subject-row">
-          <label className="field-label">Subject</label>
+          <label className="field-label">Subject <span className="required">*</span></label>
           <input
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="field-input full-width"
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (e.target.value.trim()) {
+                setErrors(prev => ({ ...prev, subject: undefined }));
+              }
+            }}
+            className={`field-input full-width ${errors.subject ? 'error' : ''}`}
             placeholder="Enter subject"
+            disabled={isLoading}
           />
         </div>
       </div>
 
-      {/* Content Area */}
+      <div className="formatting-toolbar">
+        <div className="toolbar-content">
+          <div className="toolbar-group">
+            <button
+              onClick={() => applyFormatting('bold')}
+              className="toolbar-button"
+              title="Bold"
+              disabled={isLoading}
+            >
+              <strong>B</strong>
+            </button>
+            <button
+              onClick={() => applyFormatting('italic')}
+              className="toolbar-button"
+              title="Italic"
+              disabled={isLoading}
+            >
+              <em>I</em>
+            </button>
+            <button
+              onClick={() => applyFormatting('underline')}
+              className="toolbar-button"
+              title="Underline"
+              disabled={isLoading}
+            >
+              <u>U</u>
+            </button>
+          </div>
+          <button
+            onClick={insertImage}
+            className="toolbar-button"
+            title="Insert image"
+            disabled={isLoading}
+          >
+            <Image size={18} />
+          </button>
+        </div>
+      </div>
+
       <div className="content-area">
         <div
           ref={editorRef}
-          className="content-editable"
+          className={`content-editable ${errors.content ? 'error' : ''}`}
           contentEditable
-          placeholder="Compose your message..."
-          style={{
-            fontFamily:
-              fontSize === "Serif"
-                ? "serif"
-                : fontSize === "Arial"
-                ? "Arial, sans-serif"
-                : fontSize === "Times"
-                ? "Times, serif"
-                : "system-ui, sans-serif",
+          placeholder="Write your email content here..."
+          onInput={() => {
+            if (editorRef.current?.innerHTML.trim() && editorRef.current.innerHTML !== '<div><br></div>') {
+              setErrors(prev => ({ ...prev, content: undefined }));
+            }
           }}
-        ></div>
+        />
       </div>
 
-      {/* Formatting Toolbar */}
-      <div className="formatting-toolbar">
-        <div className="toolbar-content">
-          {/* Undo/Redo */}
-          <button className="toolbar-button" onClick={() => execCommand("undo")}>
-            <Undo2 size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("redo")}>
-            <Redo2 size={16} />
-          </button>
-
-          {/* Font Selector */}
-          <select
-            value={fontSize}
-            onChange={(e) => setFontSize(e.target.value)}
-            className="font-selector"
-          >
-            <option>Sans Serif</option>
-            <option>Serif</option>
-            <option>Arial</option>
-            <option>Times</option>
-          </select>
-
-          {/* Text Formatting */}
-          <button className="toolbar-button" onClick={() => execCommand("bold")}>
-            <Bold size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("italic")}>
-            <Italic size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("underline")}>
-            <Underline size={16} />
-          </button>
-
-          {/* Alignment */}
-          <button className="toolbar-button" onClick={() => execCommand("justifyLeft")}>
-            <AlignLeft size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("insertUnorderedList")}>
-            <List size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("insertOrderedList")}>
-            <ListOrdered size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("outdent")}>
-            <Outdent size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("indent")}>
-            <Indent size={16} />
-          </button>
-          <button className="toolbar-button" onClick={() => execCommand("formatBlock", "blockquote")}>
-            <Quote size={16} />
-          </button>
-
-          {/* Insert */}
-          <button className="toolbar-button" onClick={insertLink}>
-            <Link2 size={16} />
-          </button>
-          <button className="toolbar-button" onClick={scheduleSend}>
-            <Clock size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Toolbar */}
       <div className="bottom-toolbar">
         <div className="toolbar-left">
-          <button className="send-button">Send</button>
-
+          <button
+            onClick={handleSendBulkEmail}
+            className="send-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Sending...' : 'Send'}
+          </button>
+          <button
+            onClick={scheduleSend}
+            className="send-button"
+            disabled={isLoading}
+          >
+            Schedule Send
+          </button>
           <div className="insert-buttons">
             <label className="toolbar-button" title="Attach file">
-              <Paperclip size={16} />
-              <input type="file" style={{ display: "none" }} />
+              <Paperclip size={18} />
+              <input
+                type="file"
+                style={{ display: 'none' }}
+                onChange={handleAttachmentUpload}
+                disabled={isLoading}
+              />
             </label>
-            <button className="toolbar-button" title="Insert image">
-              <Image size={16} />
-            </button>
-            <button className="toolbar-button" title="Edit signature">
-              <Edit3 size={16} />
+            <button
+              onClick={editSignature}
+              className="toolbar-button"
+              title="Edit signature"
+              disabled={isLoading}
+            >
+              <Edit3 size={18} />
             </button>
           </div>
         </div>
-
-        <button className="toolbar-button delete-button" title="Delete">
-          <Trash2 size={16} />
+        <button
+          className="delete-button"
+          title="Delete"
+          disabled={isLoading}
+          onClick={() => {
+            setExcelFile(null);
+            setSubject('');
+            setCc('');
+            setBcc('');
+            setAttachment(null);
+            setErrors({});
+            if (editorRef.current) editorRef.current.innerHTML = '';
+          }}
+        >
+          <Trash2 size={18} />
         </button>
       </div>
     </div>

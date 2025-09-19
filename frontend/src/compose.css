@@ -1,262 +1,273 @@
 /* Email Compose Window Styles */
 
-/* Add a container to center the compose window */
+/* Base styles for body and root */
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
   background: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 20px;
   box-sizing: border-box;
 }
 
-.email-compose-window {
+/* Main compose container */
+.email-compose-container {
   width: 100%;
   max-width: 800px;
-  min-width: 320px;
-  max-height: 90vh;
+  margin: 0 auto;
   background: white;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
-  overflow: hidden;
   border: 1px solid #e5e7eb;
   font-family: inherit;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
-/* Header Styles */
-.header {
-  background: #1e40af;
-  color: white;
-  padding: 12px 16px;
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
+  justify-content: center;
+  z-index: 1000;
+  color: white;
+  font-size: 16px;
 }
 
-.header-title {
-  font-weight: 500;
-  font-size: 14px;
-  margin: 0;
+/* Error container */
+.compose-error-container {
+  padding: 12px 16px;
+  background-color: #fef2f2;
+  border-bottom: 1px solid #ef4444;
 }
 
-.header-controls {
+.compose-error-message {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #ef4444;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
-.control-button {
-  background: none;
-  border: none;
-  color: white;
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.control-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* Email Fields Styles */
-.email-fields {
+/* Compose fields section */
+.compose-fields {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
 }
 
 .field-row {
   display: flex;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
 .field-row.subject-row {
   border-top: 1px solid #f3f4f6;
   padding-top: 12px;
-  margin-bottom: 0;
 }
 
 .field-label {
+  width: 80px;
   font-size: 14px;
-  color: #6b7280;
-  width: 64px;
-  flex-shrink: 0;
-  margin: 0;
+  font-weight: 500;
+  color: #374151;
+}
+
+.field-label .required {
+  color: #ef4444;
 }
 
 .field-input-container {
   flex: 1;
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 
 .field-input {
   flex: 1;
-  border: none;
-  outline: none;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
-  padding: 4px 0;
-  background: transparent;
+  outline: none;
 }
 
-.field-input.full-width {
-  width: 100%;
+.field-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.field-input.error {
+  border-color: #ef4444;
+}
+
+.field-input:disabled {
+  background-color: #f9fafb;
+  cursor: not-allowed;
 }
 
 .field-input::placeholder {
   color: #9ca3af;
 }
 
-.cc-bcc-buttons {
-  display: flex;
+.field-input.full-width {
+  width: 100%;
+}
+
+/* Excel upload */
+.excel-upload {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #f9fafb;
+  cursor: pointer;
   font-size: 14px;
+  color: #374151;
+}
+
+.excel-upload:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.excel-upload input {
+  display: none;
+}
+
+.excel-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cc/Bcc buttons */
+.cc-bcc-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .cc-bcc-button {
-  background: none;
-  border: none;
-  color: #2563eb;
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #f9fafb;
+  color: #374151;
   cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  text-decoration: none;
 }
 
-.cc-bcc-button:hover {
-  text-decoration: underline;
+.cc-bcc-button:hover:not(:disabled) {
+  background-color: #f3f4f6;
 }
 
-/* Content Area Styles */
-.content-area {
-  flex: 1;
-  min-height: 200px;
-  padding: 16px;
-  overflow: hidden;
+.cc-bcc-button.active {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
 }
 
-.content-textarea {
-  width: 100%;
-  height: 100%;
-  min-height: 200px;
-  border: none;
-  outline: none;
-  resize: none;
-  font-size: 14px;
-  line-height: 1.5;
-  font-family: inherit;
+.cc-bcc-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.content-textarea::placeholder {
-  color: #9ca3af;
-}
-
-/* Formatting Toolbar Styles */
+/* Formatting toolbar */
 .formatting-toolbar {
-  border-top: 1px solid #e5e7eb;
   padding: 8px 16px;
-  flex-shrink: 0;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
 .toolbar-content {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .toolbar-group {
   display: flex;
-  align-items: center;
   gap: 4px;
-  margin-right: 8px;
 }
 
 .toolbar-button {
-  background: none;
-  border: none;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
   cursor: pointer;
-  color: #6b7280;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
 }
 
-.toolbar-button:hover {
-  background: #f3f4f6;
+.toolbar-button:hover:not(:disabled) {
+  background-color: #f3f4f6;
 }
 
-.toolbar-button.active {
-  background: #e5e7eb;
-  color: #2563eb;
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.font-selector {
-  font-size: 14px;
+/* Content area */
+.content-area {
+  flex: 1;
+  padding: 16px;
+  min-height: 200px;
+}
+
+.content-editable {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-right: 8px;
-  background: white;
-  cursor: pointer;
-}
-
-.font-selector:focus {
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
   outline: none;
+}
+
+.content-editable:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-.color-indicator {
-  width: 16px;
-  height: 16px;
-  border: 1px solid #d1d5db;
-  position: relative;
-  background: white;
+.content-editable.error {
+  border-color: #ef4444;
 }
 
-.color-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: #ef4444;
+.content-editable:empty:before {
+  content: attr(placeholder);
+  color: #9ca3af;
 }
 
-.special-char {
-  font-size: 14px;
-  font-family: 'Courier New', monospace;
-}
-
-/* Bottom Toolbar Styles */
+/* Bottom toolbar */
 .bottom-toolbar {
-  border-top: 1px solid #e5e7eb;
   padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0;
+  background-color: #f9fafb;
 }
 
 .toolbar-left {
@@ -266,33 +277,51 @@ body {
 }
 
 .send-button {
-  background: #2563eb;
+  padding: 8px 16px;
+  background-color: #2563eb;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
 }
 
-.send-button:hover {
-  background: #1d4ed8;
+.send-button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.send-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .insert-buttons {
   display: flex;
-  align-items: center;
   gap: 4px;
 }
 
-.insert-buttons .toolbar-button {
-  padding: 8px;
+.delete-button {
+  padding: 6px;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  background-color: white;
+  color: #ef4444;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.delete-button {
-  padding: 8px;
+.delete-button:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Responsive Design */
@@ -300,34 +329,57 @@ body {
   #root {
     padding: 10px;
   }
-  
-  .email-compose-window {
-    max-height: 95vh;
-    border-radius: 8px;
+
+  .email-compose-container {
+    margin: 0;
   }
-  
-  .toolbar-content {
-    gap: 4px;
+
+  .field-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
-  
-  .toolbar-group {
-    margin-right: 4px;
-  }
-  
-  .font-selector {
-    margin-right: 4px;
-  }
-  
+
   .field-label {
-    width: 48px;
+    width: auto;
   }
-  
-  .insert-buttons {
-    gap: 2px;
+
+  .field-input-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
-  
-  .insert-buttons .toolbar-button {
-    padding: 6px;
+
+  .cc-bcc-buttons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .cc-bcc-button {
+    flex: 1;
+  }
+
+  .content-area {
+    min-height: 150px;
+  }
+
+  .content-editable {
+    min-height: 150px;
+  }
+
+  .bottom-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .toolbar-left {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .send-button {
+    flex: 1;
+    min-width: 120px;
   }
 }
 
@@ -335,139 +387,62 @@ body {
   #root {
     padding: 5px;
   }
-  
-  .email-compose-window {
-    max-height: 98vh;
-    border-radius: 4px;
-  }
-  
-  .header {
-    padding: 8px 12px;
-  }
-  
-  .email-fields {
-    padding: 12px;
-  }
-  
-  .content-area {
-    padding: 12px;
-    min-height: 150px;
-  }
-  
-  .content-textarea {
-    min-height: 150px;
-  }
-  
-  .formatting-toolbar {
-    padding: 6px 12px;
-  }
-  
+
+  .compose-fields,
+  .content-area,
+  .formatting-toolbar,
   .bottom-toolbar {
-    padding: 8px 12px;
+    padding: 12px;
   }
-  
-  .toolbar-left {
-    gap: 4px;
-  }
-  
-  .field-label {
-    width: 40px;
+
+  .field-label,
+  .field-input,
+  .excel-upload,
+  .content-editable {
     font-size: 13px;
   }
-  
-  .field-input {
+
+  .cc-bcc-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .toolbar-button,
+  .delete-button {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+
+  .send-button {
+    padding: 6px 12px;
     font-size: 13px;
   }
 }
 
-.content-editable {
-  width: 100%;
-  min-height: 200px;
-  border: none;
-  outline: none;
-  resize: none;
-  font-size: 14px;
-  line-height: 1.5;
-  font-family: inherit;
-  white-space: pre-wrap;
+/* Accessibility */
+:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
-.content-editable:empty:before {
-  content: attr(placeholder);
-  color: #9ca3af;
-  pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
 
-.excel-upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background-color: #f3f6f4;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
+@media (prefers-contrast: high) {
+  .field-input,
+  .content-editable,
+  .excel-upload,
+  .cc-bcc-button,
+  .toolbar-button,
+  .delete-button {
+    border-width: 2px;
+  }
 
-.excel-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.chips-input {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
-
-.email-chip {
-  background: #e0f3ff;
-  border: 1px solid #90caf9;
-  color: #0d47a1;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.remove-chip {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #0d47a1;
-  padding: 0;
-}
-.chip-input {
-  flex: 1;
-  min-width: 150px;
-  border: none;
-  outline: none;
-}
-
-.cc-bcc-buttons {
-  display: flex;
-  gap: 6px;
-  margin-left: 8px;
-}
-
-.cc-bcc-button {
-  background-color: #f1f3f4;
-  border: 1px solid #d0d0d0;
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: #444;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.cc-bcc-button:hover {
-  background-color: #e0e0e0;
-  border-color: #c0c0c0;
+  .send-button {
+    border: 2px solid #1d4ed8;
+  }
 }
