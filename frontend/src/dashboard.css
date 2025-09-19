@@ -359,11 +359,12 @@ html, body, #root {
 
 .compose-cc-btn:hover {
   background-color: #f3f4f6;
+  color: rgb(0, 0, 0);
 }
 
 .compose-cc-btn.active {
   background-color: #3b82f6;
-  color: white;
+  color: rgb(0, 0, 0);
   border-color: #3b82f6;
 }
 
