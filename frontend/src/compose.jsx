@@ -54,7 +54,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     const file = e.target.files[0];
     if (file) {
       setAttachment(file);
-      alert(`File "${file.name}" attached successfully!`);
+      alert(`📎 File "${file.name}" attached successfully!`);
     }
   };
 
@@ -88,7 +88,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         editorRef.current.innerHTML = '';
       }
     } else {
-      alert('' + result.error);
+      alert('❌ ' + result.error);
     }
   };
 
@@ -97,7 +97,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       return;
     }
 
-    alert('Email scheduled to be sent in 5 seconds!');
+    alert('⏰ Email scheduled to be sent in 5 seconds!');
     setTimeout(() => {
       handleSendBulkEmail();
     }, 5000);

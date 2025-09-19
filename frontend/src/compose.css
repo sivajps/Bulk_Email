@@ -175,12 +175,11 @@ body {
 
 .cc-bcc-button:hover:not(:disabled) {
   background-color: #f3f4f6;
-  color: black;
 }
 
 .cc-bcc-button.active {
   background-color: #2563eb;
-  color: rgb(255, 255, 255);
+  color: white;
   border-color: #2563eb;
 }
 
