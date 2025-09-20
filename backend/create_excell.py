@@ -4,7 +4,9 @@ import pandas as pd
 # Template columns and example rows
 data = [
     { "Email": "scarydare13@gmail.com"},
-    {   "Email": "smartcodelab.yt@gmail.com"}]
+    { "Email": "sivajps112002@gmail.com"},
+    {"Email":"itsmegodgamer@gmail.com"},
+    {"Email":"iam.vetrivel.r@gmail.com"}]
 
 df = pd.DataFrame(data, columns= ["Email"])
 
