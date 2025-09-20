@@ -419,7 +419,7 @@ const InboxContent = () => {
   return (
     <div className="inbox-container">
       <div className="dashboard-container">
-        <h2 className="dashboard-title">📊 Recent Email Campaigns</h2>
+        <h2 className="dashboard-title">Recent Email Campaigns</h2>
 
         <div className="campaign-list">
           {recentBulks.map((bulk) => (
