@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Image, Edit3 } from 'lucide-react';
+import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle } from 'lucide-react';
 import './compose.css';
 
 const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
@@ -7,7 +8,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   const [subject, setSubject] = useState('');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [signature, setSignature] = useState('');
@@ -17,33 +18,34 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   const excelFileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
 
-  // FIXED: Function to convert HTML to plain text
+  // Clear success messages after 3 seconds
+  useEffect(() => {
+    if (errors.successMessage) {
+      const timer = setTimeout(() => {
+        setErrors(prev => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errors.successMessage]);
+
+  // Function to convert HTML to plain text
   const htmlToPlainText = (html) => {
     if (!html || typeof html !== 'string') return '';
-
-    // Create a temporary div to parse the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    
-    // Remove all HTML tags
     let text = tempDiv.textContent || tempDiv.innerText || '';
-    
-    // Clean up extra whitespace and line breaks
-    text = text
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/^\s+|\s+$/g, '') // Trim leading/trailing spaces
-      .trim();
-    
+    text = text.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '').trim();
     return text;
   };
 
-  // FIXED: Initialize contentEditable
+  // Initialize contentEditable
   useEffect(() => {
     if (editorRef.current && !isLoading) {
       editorRef.current.focus();
     }
   }, [isLoading]);
 
+  // Validate form
   const validateForm = () => {
     const newErrors = {};
 
@@ -62,19 +64,29 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       newErrors.content = 'Please write email content';
     }
 
+    if (attachments.length > 5) {
+      newErrors.attachments = 'Cannot attach more than 5 files';
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB per file
+    attachments.forEach((file, index) => {
+      if (file.size > maxSize) {
+        newErrors.attachments = newErrors.attachments || [];
+        newErrors.attachments.push(`File "${file.name}" exceeds 10MB limit`);
+      }
+    });
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // FIXED: Prevent double upload by stopping event propagation
+  // Excel upload handler
   const handleExcelUpload = (e) => {
-    e.stopPropagation(); // FIXED: Prevent double trigger
+    e.stopPropagation();
     const file = e.target.files[0];
     if (!file) return;
 
-    // Reset the input value to allow same file to be selected again
     e.target.value = '';
-
     const validExtensions = ['.xlsx', '.xls', '.csv'];
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
 
@@ -83,8 +95,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       return;
     }
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       setErrors(prev => ({ ...prev, excelFile: 'File size must be less than 10MB' }));
       return;
@@ -94,26 +105,79 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     setErrors(prev => ({ ...prev, excelFile: undefined }));
   };
 
-  // FIXED: Prevent double click by using useCallback and proper event handling
   const triggerExcelUpload = useCallback((e) => {
-    e.preventDefault(); // FIXED: Prevent default label behavior
-    e.stopPropagation(); // FIXED: Stop event bubbling
+    e.preventDefault();
+    e.stopPropagation();
     if (isLoading || !excelFileInputRef.current) return;
     excelFileInputRef.current.click();
   }, [isLoading]);
 
-  // FIXED: Handle attachment upload
+  // Attachment upload handler
   const handleAttachmentUpload = (e) => {
-    e.stopPropagation(); // FIXED: Prevent double trigger
-    const file = e.target.files[0];
-    if (file) {
-      // Reset the input value
-      e.target.value = '';
-      setAttachment(file);
-      alert(`📎 File "${file.name}" attached successfully!`);
+    e.stopPropagation();
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    e.target.value = '';
+    const validExtensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.zip'];
+    const maxSize = 10 * 1024 * 1024; // 10MB per file
+    const maxFiles = 5; // Max number of attachments
+
+    const newAttachments = [];
+    const attachmentErrors = [];
+
+    files.forEach((file) => {
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      if (!validExtensions.includes(fileExtension)) {
+        attachmentErrors.push(`File "${file.name}" has an unsupported extension`);
+        return;
+      }
+
+      if (file.size > maxSize) {
+        attachmentErrors.push(`File "${file.name}" exceeds 10MB limit`);
+        return;
+      }
+
+      if (newAttachments.length + attachments.length >= maxFiles) {
+        attachmentErrors.push('Cannot attach more than 5 files');
+        return;
+      }
+
+      newAttachments.push(file);
+    });
+
+    if (attachmentErrors.length > 0) {
+      setErrors(prev => ({ ...prev, attachments: attachmentErrors }));
+      return;
     }
+
+    setAttachments(prev => [...prev, ...newAttachments]);
+    setErrors(prev => ({
+      ...prev,
+      attachments: undefined,
+      successMessage: `Attached ${newAttachments.length} file(s) successfully`,
+    }));
   };
 
+  // Trigger attachment upload
+  const triggerAttachmentUpload = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isLoading || !attachmentInputRef.current) return;
+    attachmentInputRef.current.click();
+  }, [isLoading]);
+
+  // Remove specific attachment
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setErrors(prev => ({
+      ...prev,
+      attachments: undefined,
+      successMessage: 'Attachment removed',
+    }));
+  };
+
+  // Send bulk email handler
   const handleSendBulkEmail = async () => {
     if (!validateForm()) {
       return;
@@ -123,10 +187,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     formData.append('file', excelFile);
     formData.append('subject', subject);
     
-    // FIXED: Convert HTML content to plain text
     let contentHTML = editorRef.current?.innerHTML || '';
-    
-    // Clean up empty divs and extra line breaks
     contentHTML = contentHTML
       .replace(/<div><br><\/div>/g, '')
       .replace(/<div><\/div>/g, '')
@@ -134,10 +195,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       .replace(/<br><br><br>/g, '<br><br>')
       .trim();
     
-    // Convert to plain text
     let contentText = htmlToPlainText(contentHTML);
-    
-    // Add signature as plain text if it exists
     if (contentText && signature.trim()) {
       contentText += `\n\n---\n${signature}`;
     } else if (signature.trim()) {
@@ -148,75 +206,63 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     
     if (cc) formData.append('cc', cc);
     if (bcc) formData.append('bcc', bcc);
-    if (attachment) formData.append('attachment', attachment);
+    attachments.forEach((file, index) => {
+      formData.append(`attachment${index}`, file);
+    });
 
     const result = await sendBulkEmail(formData, setIsLoading, showConfigPopup, isConfigured);
 
     if (result.success) {
-      alert(result.message);
-      // Reset form
+      setErrors(prev => ({
+        ...prev,
+        successMessage: result.message,
+      }));
       setExcelFile(null);
       setSubject('');
       setCc('');
       setBcc('');
-      setAttachment(null);
+      setAttachments([]);
       setShowCc(false);
       setShowBcc(false);
-      setErrors({});
+      setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined }));
       if (editorRef.current) {
         editorRef.current.innerHTML = '';
       }
     } else {
-      alert('❌ ' + result.error);
+      setErrors(prev => ({ ...prev, errorMessage: result.error }));
     }
   };
 
+  // Schedule send
   const scheduleSend = () => {
     if (!validateForm()) {
       return;
     }
 
-    alert('Email scheduled to be sent in 5 seconds!');
+    setErrors(prev => ({ ...prev, successMessage: 'Email scheduled to be sent in 5 seconds' }));
     setTimeout(() => {
       handleSendBulkEmail();
     }, 5000);
   };
 
-  // FIXED: Improved image insertion
-  const insertImage = () => {
-    const url = prompt('Enter the image URL:');
-    if (url && editorRef.current) {
-      editorRef.current.focus();
-      document.execCommand('insertHTML', false, `<br><img src="${url}" alt="Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; display: block;"><br>`);
-    }
-  };
-
-  // FIXED: Enhanced formatting function - APPLIES FORMATTING ONLY, NO SAMPLE TEXT
+  // Formatting function
   const applyFormatting = (command) => {
     if (!editorRef.current || isLoading) return;
-    
     try {
-      // Ensure the editor is focused
       editorRef.current.focus();
-      
-      // Check if execCommand is available
       if (typeof document.execCommand !== 'function') {
         throw new Error('execCommand not available');
       }
       
-      // Small delay to ensure focus is applied
       setTimeout(() => {
-        // Get current selection
         const selection = window.getSelection();
         if (!selection || !selection.rangeCount) {
-          // No selection - create a zero-width span with formatting
           const formattedSpan = document.createElement('span');
           formattedSpan.style.cssText = 
             command === 'bold' ? 'font-weight: bold;' :
             command === 'italic' ? 'font-style: italic;' :
             command === 'underline' ? 'text-decoration: underline;' : '';
           
-          // Insert the empty formatted span
           const range = document.createRange();
           range.selectNodeContents(editorRef.current);
           range.collapse(false);
@@ -226,15 +272,12 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           selection.removeAllRanges();
           selection.addRange(range);
           
-          // Place cursor inside the formatted span
           formattedSpan.focus();
         } else {
-          // Apply formatting to selection
           const hasSelection = !selection.getRangeAt(0).collapsed;
           if (hasSelection) {
             document.execCommand(command, false, null);
           } else {
-            // No selection but cursor exists - wrap cursor in formatted span
             const range = selection.getRangeAt(0);
             const formattedSpan = document.createElement('span');
             formattedSpan.style.cssText = 
@@ -250,28 +293,22 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           }
         }
         
-        // Re-focus the editor
         editorRef.current.focus();
-        
       }, 50);
-      
     } catch (error) {
       console.error('Formatting error:', error);
-      // Fallback: toggle formatting using inline styles
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const hasSelection = !range.collapsed;
         
         if (hasSelection) {
-          // Apply formatting to selected text
           range.surroundContents(
             command === 'bold' ? document.createElement('strong') :
             command === 'italic' ? document.createElement('em') :
             command === 'underline' ? document.createElement('u') : document.createElement('span')
           );
         } else {
-          // Create empty formatted span at cursor
           const formattedSpan = document.createElement(
             command === 'bold' ? 'strong' :
             command === 'italic' ? 'em' :
@@ -292,6 +329,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }
   };
 
+  // Edit signature
   const editSignature = () => {
     const newSignature = prompt('Enter your email signature:', signature);
     if (newSignature !== null) {
@@ -307,7 +345,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         </div>
       )}
 
-      {(errors.excelFile || errors.subject || errors.content) && (
+      {(errors.excelFile || errors.subject || errors.content || errors.attachments || errors.successMessage || errors.errorMessage) && (
         <div className="compose-error-container">
           {errors.excelFile && (
             <div className="compose-error-message">
@@ -327,6 +365,30 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <span>{errors.content}</span>
             </div>
           )}
+          {errors.attachments && Array.isArray(errors.attachments) && errors.attachments.map((error, index) => (
+            <div key={index} className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          ))}
+          {errors.attachments && !Array.isArray(errors.attachments) && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.attachments}</span>
+            </div>
+          )}
+          {errors.successMessage && (
+            <div className="compose-success-message">
+              <CheckCircle size={16} />
+              <span>{errors.successMessage}</span>
+            </div>
+          )}
+          {errors.errorMessage && (
+            <div className="compose-error-message">
+              <AlertCircle size={16} />
+              <span>{errors.errorMessage}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -334,7 +396,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         <div className="field-row">
           <label className="field-label">Recipients <span className="required">*</span></label>
           <div className="field-input-container">
-            {/* FIXED: Prevent double upload */}
             <label 
               className={`excel-upload ${isLoading ? 'disabled' : ''}`} 
               title={excelFile ? `Uploaded: ${excelFile.name}` : "Upload Excel with Email Addresses"}
@@ -355,7 +416,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
                 accept=".xlsx,.xls,.csv"
                 style={{ display: 'none' }}
                 onChange={handleExcelUpload}
-                onClick={(e) => e.stopPropagation()} // FIXED: Prevent double trigger
+                onClick={(e) => e.stopPropagation()}
               />
               <span>{excelFile ? `${excelFile.name}` : 'Upload Excel File'}</span>
               {isLoading && <span className="loading-indicator">⏳</span>}
@@ -424,12 +485,32 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
             disabled={isLoading}
           />
         </div>
+
+        {attachments.length > 0 && (
+          <div className="field-row">
+            <label className="field-label">Attachments</label>
+            <div className="field-input-container attachment-list">
+              {attachments.map((file, index) => (
+                <div key={index} className="attachment-item">
+                  <span className="attachment-name">{file.name}</span>
+                  <button
+                    onClick={() => removeAttachment(index)}
+                    className="remove-attachment-button"
+                    title="Remove attachment"
+                    disabled={isLoading}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="formatting-toolbar">
         <div className="toolbar-content">
           <div className="toolbar-group">
-            {/* FIXED: Updated tooltips to reflect new behavior */}
             <button
               onClick={() => applyFormatting('bold')}
               className="toolbar-button"
@@ -458,15 +539,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <u style={{ fontSize: '12px', textDecoration: 'underline' }}>U</u>
             </button>
           </div>
-          <button
-            onClick={insertImage}
-            className="toolbar-button"
-            title="Insert image"
-            disabled={isLoading}
-            aria-label="Insert image"
-          >
-            <Image size={18} />
-          </button>
         </div>
       </div>
 
@@ -486,12 +558,10 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           }}
           onFocus={(e) => {
             e.currentTarget.classList.add('focused');
-            // FIXED: Ensure proper selection handling
             const selection = window.getSelection();
             if (selection && selection.rangeCount > 0) {
               const range = selection.getRangeAt(0);
               if (range.collapsed && e.currentTarget.innerHTML === '') {
-                // Place cursor at start if empty
                 range.setStart(e.currentTarget, 0);
                 range.collapse(true);
                 selection.removeAllRanges();
@@ -501,13 +571,11 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           }}
           onBlur={(e) => {
             e.currentTarget.classList.remove('focused');
-            // Clean up empty content
             if (e.currentTarget.innerHTML.trim() === '' || e.currentTarget.innerHTML === '<br>' || e.currentTarget.innerHTML === '<p><br></p>') {
               e.currentTarget.innerHTML = '';
             }
           }}
           onKeyDown={(e) => {
-            // FIXED: Handle Enter key for proper line breaks
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               document.execCommand('insertHTML', false, '<br><br>');
@@ -537,14 +605,14 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           <div className="insert-buttons">
             <label 
               className="toolbar-button" 
-              title="Attach file"
-              onClick={(e) => e.preventDefault()}
+              title="Attach files"
+              onClick={triggerAttachmentUpload}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  attachmentInputRef.current?.click();
+                  triggerAttachmentUpload(e);
                 }
               }}
             >
@@ -552,6 +620,8 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
               <input
                 ref={attachmentInputRef}
                 type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
                 style={{ display: 'none' }}
                 onChange={handleAttachmentUpload}
                 onClick={(e) => e.stopPropagation()}

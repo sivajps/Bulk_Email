@@ -534,14 +534,6 @@ const DetailsPopup = ({ bulk, onClose }) => {
             <button className="action-btn secondary" onClick={onClose}>
               Close
             </button>
-            {bulk.sent_emails && bulk.sent_emails.length > 0 && (
-              <button className="action-btn primary" onClick={() => {
-                // Export functionality would go here
-                console.log('Exporting campaign data:', bulk);
-              }}>
-                Export Report
-              </button>
-            )}
           </div>
         </div>
       </div>

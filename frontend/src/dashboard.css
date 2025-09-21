@@ -1658,15 +1658,6 @@ html, body, #root {
   transition: all 0.2s ease;
 }
 
-.action-btn.primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.action-btn.primary:hover {
-  background: #2563eb;
-}
-
 .action-btn.secondary {
   background: #f3f4f6;
   color: #374151;
