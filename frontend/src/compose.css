@@ -376,6 +376,22 @@ body {
   cursor: text;
 }
 
+.content-editable {
+  white-space: pre-wrap; /* Preserve spaces and line breaks */
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  min-height: 200px;
+  outline: none;
+}
+.content-editable.focused {
+  border-color: #3b82f6;
+}
+.content-editable[placeholder]:empty:before {
+  content: attr(placeholder);
+  color: #9ca3af;
+}
+
 .content-editable:focus,
 .content-editable.focused {
   border-color: #1b70e7 !important;

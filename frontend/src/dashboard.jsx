@@ -147,7 +147,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
-          {activeTab === 'Inbox' && <InboxContent />}
+          {activeTab === 'Inbox' && <InboxContent setActiveTab={setActiveTab} />}
           {activeTab === 'Compose' && (
             <EmailComposeWindow 
               isConfigured={isConfigured} 
@@ -334,7 +334,7 @@ const EmailConfiguration = ({ onConfigure }) => {
 };
 
 // Updated InboxContent Component
-const InboxContent = () => {
+const InboxContent = ({ setActiveTab }) => {
   const [recentBulks, setRecentBulks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBulk, setSelectedBulk] = useState(null);
@@ -404,10 +404,7 @@ const InboxContent = () => {
           </p>
           <button 
             className="cta-button" 
-            onClick={() => {
-              // This would need to be passed as a prop or use a navigation context
-              window.location.href = '#compose';
-            }}
+            onClick={() => setActiveTab('Compose')}
           >
             Start Sending
           </button>
@@ -452,9 +449,6 @@ const InboxContent = () => {
                 <span className="failed stat-item">
                   <XCircle size={16} /> {bulk.failed_count || 0} Failed
                 </span>
-                <span className={`delivery-rate ${bulk.success_count === 0 ? 'zero-rate' : ''}`}>
-                  {(bulk.success_count / (bulk.success_count + bulk.failed_count) * 100 || 0).toFixed(1)}% Delivery
-                </span>
               </div>
             </div>
           ))}
@@ -471,10 +465,8 @@ const InboxContent = () => {
   );
 };
 
-// Details Popup Component
 const DetailsPopup = ({ bulk, onClose }) => {
   const totalEmails = (bulk.sent_emails?.length || 0) + (bulk.failed_emails?.length || 0);
-  const deliveryRate = totalEmails > 0 ? ((bulk.sent_emails?.length || 0) / totalEmails * 100).toFixed(1) : 0;
 
   return (
     <div className="details-popup-overlay" onClick={onClose}>
@@ -491,7 +483,41 @@ const DetailsPopup = ({ bulk, onClose }) => {
             <p><strong>Sender:</strong> {bulk.sender_email}</p>
             <p><strong>Date:</strong> {new Date(bulk.sent_time || bulk.timestamp).toLocaleString()}</p>
             <p><strong>Total Recipients:</strong> {totalEmails}</p>
-            <p><strong>Delivery Rate:</strong> <span className={`delivery-rate ${deliveryRate === '0.0' ? 'zero-rate' : ''}`}>{deliveryRate}%</span></p>
+          </div>
+
+          <div className="details-section">
+            <h4>Email Content</h4>
+            {bulk.content_html ? (
+              <div
+                className="email-content-preview"
+                style={{
+                  border: '1px solid #e5e7eb',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#f9fafb',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}
+                dangerouslySetInnerHTML={{ __html: bulk.content_html }}
+              />
+            ) : bulk.content ? (
+              <pre
+                className="email-content-preview"
+                style={{
+                  border: '1px solid #e5e7eb',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#f9fafb',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}
+              >
+                {bulk.content}
+              </pre>
+            ) : (
+              <p className="no-content">No content available</p>
+            )}
           </div>
 
           <div className="details-section">

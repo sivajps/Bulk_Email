@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle } from 'lucide-react';
 import './compose.css';
@@ -28,14 +27,22 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }
   }, [errors.successMessage]);
 
-  // Function to convert HTML to plain text
+  // Function to convert HTML to plain text while preserving all whitespace and line breaks
   const htmlToPlainText = (html) => {
     if (!html || typeof html !== 'string') return '';
+    // Create a temporary div to parse HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     let text = tempDiv.textContent || tempDiv.innerText || '';
-    text = text.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '').trim();
-    return text;
+    // Preserve line breaks and spaces
+    text = text.replace(/(\r\n|\n|\r)/gm, ''); // Remove existing newlines
+    text = text.replace(/<(p|div|br)[^>]*>/gi, '\n'); // Add newlines for block tags
+    text = text.replace(/<\/(p|div)>/gi, '\n'); // Add newlines for closing block tags
+    text = text.replace(/<[^>]+>/g, ''); // Remove remaining HTML tags
+    text = text.replace(/\u00A0/g, ' '); // Replace non-breaking spaces with regular spaces
+    // Preserve multiple spaces and single newlines
+    text = text.replace(/\n\s*\n+/g, '\n'); // Collapse multiple newlines to single
+    return text; // Do not trim to preserve leading/trailing spaces
   };
 
   // Initialize contentEditable
@@ -159,7 +166,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }));
   };
 
-  // Trigger attachment upload
   const triggerAttachmentUpload = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -188,8 +194,10 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     formData.append('subject', subject);
     
     let contentHTML = editorRef.current?.innerHTML || '';
+    // Wrap content in <pre> to preserve whitespace in HTML
+    contentHTML = `<pre style="white-space: pre-wrap;">${contentHTML}</pre>`;
     contentHTML = contentHTML
-      .replace(/<div><br><\/div>/g, '')
+      .replace(/<div><br><\/div>/g, '<br>')
       .replace(/<div><\/div>/g, '')
       .replace(/<p><br><\/p>/g, '')
       .replace(/<br><br><br>/g, '<br><br>')
@@ -198,11 +206,14 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     let contentText = htmlToPlainText(contentHTML);
     if (contentText && signature.trim()) {
       contentText += `\n\n---\n${signature}`;
+      contentHTML += `<br><br>---<br><pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
     } else if (signature.trim()) {
       contentText = signature;
+      contentHTML = `<pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
     }
     
     formData.append('content', contentText);
+    formData.append('contentHTML', contentHTML);
     
     if (cc) formData.append('cc', cc);
     if (bcc) formData.append('bcc', bcc);
@@ -548,6 +559,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           className={`content-editable ${errors.content ? 'error' : ''} ${!isLoading ? 'focused' : ''}`}
           contentEditable={!isLoading}
           suppressContentEditableWarning={true}
+          style={{ whiteSpace: 'pre-wrap' }} // Preserve whitespace in editor
           placeholder="Write your email content here..."
           onInput={(e) => {
             const contentHTML = e.currentTarget.innerHTML || '';
