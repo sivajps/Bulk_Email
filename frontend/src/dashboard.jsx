@@ -146,16 +146,20 @@ const Dashboard = () => {
             <h2 className="page-title">{activeTab}</h2>
           </div>
         </div>
-        <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
-          {activeTab === 'Inbox' && <InboxContent setActiveTab={setActiveTab} />}
-          {activeTab === 'Compose' && (
-            <EmailComposeWindow 
-              isConfigured={isConfigured} 
-              showConfigPopup={() => setShowConfigPopup(true)}
-              sendBulkEmail={sendBulkEmail}
-            />
-          )}
-          {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
+        
+        {/* Add a container div for better content management */}
+        <div className="content-wrapper">
+          <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
+            {activeTab === 'Inbox' && <InboxContent setActiveTab={setActiveTab} />}
+            {activeTab === 'Compose' && (
+              <EmailComposeWindow 
+                isConfigured={isConfigured} 
+                showConfigPopup={() => setShowConfigPopup(true)}
+                sendBulkEmail={sendBulkEmail}
+              />
+            )}
+            {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
+          </div>
         </div>
       </div>
       <div className="footer-nav">
