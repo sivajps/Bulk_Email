@@ -1,23 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Home, Inbox, Edit3, Undo2, Redo2, Bold, Italic, Underline, AlignLeft, List, FileSpreadsheet, ListOrdered, Indent, Outdent, Quote, Link2, Image, Clock, Trash2, Paperclip, CheckCircle, XCircle, Clock as ClockIcon, Send, Settings, X, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Inbox, Edit3, Settings, X, AlertCircle, Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
+import EmailComposeWindow from './compose';
 import './dashboard.css';
 
-// Extracted sendBulkEmail function
-const sendBulkEmail = async (emailData, setIsLoading, showConfigPopup, isConfigured) => {
+// sendBulkEmail function (unchanged, aligned with backend)
+const sendBulkEmail = async (formData, setIsLoading, showConfigPopup, isConfigured) => {
   if (!isConfigured) {
     showConfigPopup();
     return { success: false, error: 'Email not configured' };
   }
 
-  if (emailData.to.length === 0) {
-    return { success: false, error: 'Please add recipients or upload Excel file with email addresses' };
+  if (!formData.get('file')) {
+    return { success: false, error: 'Please upload an Excel file with email addresses' };
   }
 
-  if (!emailData.subject.trim()) {
+  if (!formData.get('subject').trim()) {
     return { success: false, error: 'Please enter email subject' };
   }
 
-  if (!emailData.content.trim() || emailData.content === '<div><br></div>') {
+  if (!formData.get('content').trim() || formData.get('content') === '<div><br></div>') {
     return { success: false, error: 'Please write email content' };
   }
 
@@ -26,10 +27,7 @@ const sendBulkEmail = async (emailData, setIsLoading, showConfigPopup, isConfigu
 
     const response = await fetch('http://localhost:5000/send_bulk', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(emailData),
+      body: formData,
     });
 
     const contentType = response.headers.get('content-type');
@@ -149,7 +147,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className={`content ${activeTab === 'Compose' || activeTab === 'Configure' ? 'content-full' : 'content-padded'}`}>
-          {activeTab === 'Inbox' && <InboxContent />}
+          {activeTab === 'Inbox' && <InboxContent setActiveTab={setActiveTab} />}
           {activeTab === 'Compose' && (
             <EmailComposeWindow 
               isConfigured={isConfigured} 
@@ -335,73 +333,43 @@ const EmailConfiguration = ({ onConfigure }) => {
   );
 };
 
-const InboxContent = () => {
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [emailHistory, setEmailHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Updated InboxContent Component
+const InboxContent = ({ setActiveTab }) => {
+  const [recentBulks, setRecentBulks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBulk, setSelectedBulk] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchEmailHistory = async () => {
+    const fetchRecent = async () => {
       try {
-        setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/email-history');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch email history');
+        const res = await fetch("http://localhost:5000/recent_bulk");
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
         }
-        
-        const data = await response.json();
+        const data = await res.json();
         if (data.success) {
-          setEmailHistory(data.emails || []);
+          setRecentBulks(data.data || []);
         } else {
-          throw new Error(data.message || 'Failed to fetch email history');
+          setError('Failed to load campaigns data');
         }
       } catch (err) {
-        setError(err.message);
-        console.error('Error fetching email history:', err);
+        console.error("Error fetching recent bulk:", err);
+        setError('Cannot connect to server. Please ensure the backend is running.');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchEmailHistory();
+    fetchRecent();
   }, []);
 
-  const filteredEmails = selectedFilter === 'all' 
-    ? emailHistory 
-    : emailHistory.filter(email => email.status === selectedFilter);
-
-  const statusCounts = {
-    sent: emailHistory.filter(email => email.status === 'sent').length,
-    failed: emailHistory.filter(email => email.status === 'failed').length,
-    sending: emailHistory.filter(email => email.status === 'sending').length,
-  };
-
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'sent': return <CheckCircle size={16} color="#10b981" />;
-      case 'failed': return <XCircle size={16} color="#ef4444" />;
-      case 'sending': return <ClockIcon size={16} color="#f59e0b" />;
-      default: return null;
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch(status) {
-      case 'sent': return 'Sent';
-      case 'failed': return 'Failed';
-      case 'sending': return 'Sending';
-      default: return '';
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="inbox-container">
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <p>Loading email history...</p>
+        <div className="dashboard-center">
+          <Loader className="animate-spin" size={40} />
+          <p className="loading-text">Loading recent campaigns...</p>
         </div>
       </div>
     );
@@ -411,8 +379,35 @@ const InboxContent = () => {
     return (
       <div className="inbox-container">
         <div className="error-state">
-          <AlertCircle size={20} color="#ef4444" />
-          <p>{error}</p>
+          <AlertCircle size={48} className="error-icon" />
+          <h3 className="error-title">Failed to load campaigns</h3>
+          <p className="error-text">{error}</p>
+          <button 
+            className="retry-button" 
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (recentBulks.length === 0) {
+    return (
+      <div className="inbox-container">
+        <div className="empty-state">
+          <Inbox className="empty-state-icon" size={64} />
+          <h3 className="empty-state-title">No campaigns yet</h3>
+          <p className="empty-state-text">
+            Start sending bulk emails to see your campaign history here.
+          </p>
+          <button 
+            className="cta-button" 
+            onClick={() => setActiveTab('Compose')}
+          >
+            Start Sending
+          </button>
         </div>
       </div>
     );
@@ -420,545 +415,153 @@ const InboxContent = () => {
 
   return (
     <div className="inbox-container">
-      <div className="status-grid">
-        <div className="status-card">
-          <div className="status-header">
-            <div className="status-icon status-icon-green">
-              <Send size={20} color="#10b981" />
-            </div>
-            <span className="status-title">Sent</span>
-          </div>
-          <div className="status-count">{statusCounts.sent}</div>
-        </div>
-        <div className="status-card">
-          <div className="status-header">
-            <div className="status-icon status-icon-red">
-              <XCircle size={20} color="#ef4444" />
-            </div>
-            <span className="status-title">Failed</span>
-          </div>
-          <div className="status-count">{statusCounts.failed}</div>
-        </div>
-        <div className="status-card">
-          <div className="status-header">
-            <div className="status-icon status-icon-yellow">
-              <ClockIcon size={20} color="#f59e0b" />
-            </div>
-            <span className="status-title">Sending</span>
-          </div>
-          <div className="status-count">{statusCounts.sending}</div>
-        </div>
-      </div>
+      <div className="dashboard-container">
+        <h2 className="dashboard-title">Recent Email Campaigns</h2>
 
-      <div className="email-history">
-        <div className="email-history-header">
-          <h3 className="email-history-title">Email History</h3>
-          <div className="email-history-filters">
-            <button 
-              className={`filter-btn ${selectedFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setSelectedFilter('all')}
+        <div className="campaign-list">
+          {recentBulks.map((bulk) => (
+            <div
+              key={bulk.id || bulk.timestamp}
+              className="campaign-card"
+              onClick={() => setSelectedBulk(bulk)}
             >
-              All
-            </button>
-            <button 
-              className={`filter-btn ${selectedFilter === 'sent' ? 'active' : ''}`}
-              onClick={() => setSelectedFilter('sent')}
-            >
-              Sent
-            </button>
-            <button 
-              className={`filter-btn ${selectedFilter === 'failed' ? 'active' : ''}`}
-              onClick={() => setSelectedFilter('failed')}
-            >
-              Failed
-            </button>
-            <button 
-              className={`filter-btn ${selectedFilter === 'sending' ? 'active' : ''}`}
-              onClick={() => setSelectedFilter('sending')}
-            >
-              Sending
-            </button>
-          </div>
-        </div>
-
-        {emailHistory.length === 0 ? (
-          <div className="empty-state">
-            <Inbox className="empty-state-icon" />
-            <h3 className="empty-state-title">No Emails yet</h3>
-            <p className="empty-state-text">
-              You haven't sent any emails yet. Compose your first email to get started!
-            </p>
-          </div>
-        ) : filteredEmails.length > 0 ? (
-          <div className="email-list">
-            {filteredEmails.map(email => (
-              <div key={email.id} className="email-item">
-                <div className="email-item-main">
-                  <h4 className="email-subject">{email.subject}</h4>
-                  <div className="email-details">
-                    <span className="email-recipients">{email.recipients} recipients</span>
-                    <span className="email-date">{new Date(email.date).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="email-status">
-                  {getStatusIcon(email.status)}
-                  <span className="status-text">{getStatusText(email.status)}</span>
+              <div className="campaign-header">
+                <Mail className="campaign-icon" />
+                <div className="campaign-info">
+                  <h3 className="campaign-subject">{bulk.subject || 'Untitled Campaign'}</h3>
+                  <p className="campaign-sender">
+                    From: <strong>{bulk.sender_email}</strong>
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <Inbox className="empty-state-icon" />
-            <h3 className="empty-state-title">No emails found</h3>
-            <p className="empty-state-text">
-              No {selectedFilter} emails found.
-            </p>
-          </div>
+              <div className="campaign-meta">
+                <span className="campaign-date">
+                  {new Date(bulk.sent_time || bulk.timestamp).toLocaleString()}
+                </span>
+                <span className="campaign-recipient-count">
+                  {bulk.total_emails || (bulk.success_count + bulk.failed_count)} recipients
+                </span>
+              </div>
+              <div className="campaign-stats">
+                <span className="success stat-item">
+                  <CheckCircle size={16} /> {bulk.success_count || 0} Sent
+                </span>
+                <span className="failed stat-item">
+                  <XCircle size={16} /> {bulk.failed_count || 0} Failed
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {selectedBulk && (
+          <DetailsPopup 
+            bulk={selectedBulk} 
+            onClose={() => setSelectedBulk(null)} 
+          />
         )}
       </div>
     </div>
   );
 };
 
-const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
-  const [to, setTo] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const [cc, setCc] = useState('');
-  const [bcc, setBcc] = useState('');
-  const [subject, setSubject] = useState('');
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
-  const [fontFamily, setFontFamily] = useState('Sans Serif');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const editorRef = useRef(null);
-
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (to.length === 0) {
-      newErrors.recipients = 'Please add recipients or upload Excel file with email addresses';
-    }
-
-    const invalidEmails = to.filter(email => !isValidEmail(email));
-    if (invalidEmails.length > 0) {
-      newErrors.invalidEmails = `Invalid email format: ${invalidEmails.join(', ')}`;
-    }
-
-    if (!subject.trim()) {
-      newErrors.subject = 'Please enter email subject';
-    }
-
-    if (!editorRef.current?.innerHTML.trim() || editorRef.current.innerHTML === '<div><br></div>') {
-      newErrors.content = 'Please write email content';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  useEffect(() => {
-    if (to.length > 0 && errors.recipients) {
-      setErrors(prev => ({ ...prev, recipients: undefined }));
-    }
-  }, [to, errors.recipients]);
-
-  const execCommand = (command, value = null) => {
-    document.execCommand(command, false, value);
-    if (editorRef.current) editorRef.current.focus();
-  };
-
-  const insertLink = () => {
-    const url = prompt('Enter the link URL:');
-    if (url) execCommand('createLink', url);
-  };
-
-  const insertImage = () => {
-    const url = prompt('Enter the image URL:');
-    if (url) execCommand('insertImage', url);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
-      e.preventDefault();
-      const email = inputValue.trim().replace(/[,\s]+$/, '');
-      if (email && !to.includes(email)) {
-        if (isValidEmail(email)) {
-          setTo([...to, email]);
-          setErrors(prev => ({ 
-            ...prev, 
-            recipients: undefined, 
-            invalidEmails: undefined 
-          }));
-        } else {
-          setErrors(prev => ({ 
-            ...prev, 
-            invalidEmails: `Invalid email format: ${email}` 
-          }));
-        }
-      }
-      setInputValue('');
-    }
-  };
-
-  const removeEmail = (email) => {
-    const newTo = to.filter((e) => e !== email);
-    setTo(newTo);
-    
-    if (newTo.length === 0) {
-      setErrors(prev => ({ 
-        ...prev, 
-        recipients: 'Please add recipients or upload Excel file with email addresses' 
-      }));
-    } else {
-      setErrors(prev => ({ ...prev, recipients: undefined }));
-    }
-  };
-
-  const handleExcelUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const validExtensions = ['.xlsx', '.xls', '.csv'];
-    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-    
-    if (!validExtensions.includes(fileExtension)) {
-      alert('❌ Please upload a valid Excel file (.xlsx, .xls) or CSV file');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/upload-excel', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned non-JSON response. Please check if the endpoint is working.');
-      }
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        const validEmails = result.emails.filter(email => isValidEmail(email));
-        const invalidEmails = result.emails.filter(email => !isValidEmail(email));
-        
-        setTo(prevTo => [...new Set([...prevTo, ...validEmails])]);
-        
-        if (validEmails.length > 0) {
-          setErrors(prev => ({ ...prev, recipients: undefined }));
-        }
-        
-        if (invalidEmails.length > 0) {
-          setErrors(prev => ({ 
-            ...prev, 
-            invalidEmails: `Found ${invalidEmails.length} invalid email format(s) in the file` 
-          }));
-        }
-        
-        alert(`✅ Successfully imported ${validEmails.length} valid email addresses from Excel file!`);
-        
-        if (invalidEmails.length > 0) {
-          alert(`⚠️ ${invalidEmails.length} invalid emails were skipped.`);
-        }
-      } else {
-        alert('❌ Error reading Excel file: ' + (result.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      
-      if (error.message.includes('non-JSON response')) {
-        alert('❌ Server endpoint not working properly. Please ensure the backend server is running and the /api/upload-excel endpoint exists.');
-      } else if (error.message.includes('Failed to fetch')) {
-        alert('❌ Cannot connect to server. Please make sure the backend server is running on http://localhost:5000');
-      } else {
-        alert('❌ Upload error: ' + error.message);
-      }
-    } finally {
-      setIsLoading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleSendBulkEmail = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
-    const emailData = {
-      to: to,
-      cc: cc || '',
-      bcc: bcc || '',
-      subject: subject,
-      content: editorRef.current.innerHTML,
-    };
-
-    const result = await sendBulkEmail(emailData, setIsLoading, showConfigPopup, isConfigured);
-    
-    if (result.success) {
-      alert(result.message);
-      
-      setTo([]);
-      setSubject('');
-      setCc('');
-      setBcc('');
-      setShowCc(false);
-      setShowBcc(false);
-      setErrors({});
-      if (editorRef.current) {
-        editorRef.current.innerHTML = '';
-      }
-    } else {
-      alert('❌ ' + result.error);
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      alert(`📎 File "${file.name}" attached successfully!`);
-      // Note: File attachment is not sent to backend yet
-    }
-  };
-
-  const scheduleSend = () => {
-    if (!validateForm()) {
-      return;
-    }
-    
-    alert('⏰ Email scheduled to be sent in 5 seconds!');
-    setTimeout(() => {
-      handleSendBulkEmail();
-    }, 5000);
-  };
+const DetailsPopup = ({ bulk, onClose }) => {
+  const totalEmails = (bulk.sent_emails?.length || 0) + (bulk.failed_emails?.length || 0);
 
   return (
-    <div className="email-compose-container">
-      {isLoading && (
-        <div className="loading-overlay">
-          Processing... Please wait
-        </div>
-      )}
-
-      {(errors.recipients || errors.invalidEmails || errors.subject || errors.content) && (
-        <div className="compose-error-container">
-          {errors.recipients && (
-            <div className="compose-error-message">
-              <AlertCircle size={16} />
-              <span>{errors.recipients}</span>
-            </div>
-          )}
-          {errors.invalidEmails && (
-            <div className="compose-error-message">
-              <AlertCircle size={16} />
-              <span>{errors.invalidEmails}</span>
-            </div>
-          )}
-          {errors.subject && (
-            <div className="compose-error-message">
-              <AlertCircle size={16} />
-              <span>{errors.subject}</span>
-            </div>
-          )}
-          {errors.content && (
-            <div className="compose-error-message">
-              <AlertCircle size={16} />
-              <span>{errors.content}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="compose-fields">
-        <div className="compose-field-row">
-          <label className="compose-field-label">To</label>
-          <div className="compose-field-container">
-            <div className={`compose-chips-input ${errors.recipients || errors.invalidEmails ? 'error' : ''}`}>
-              {to.map((email, i) => (
-                <span key={i} className="compose-email-chip">
-                  {email}
-                  <button
-                    type="button"
-                    className="compose-remove-chip"
-                    onClick={() => removeEmail(email)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="compose-chip-input"
-                placeholder="Recipients (type email and press Enter)"
-                disabled={isLoading}
-              />
-            </div>
-
-            <label className="compose-excel-upload" title="Upload Excel with Email Addresses">
-              <FileSpreadsheet size={20} color="#059669" />
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                style={{ display: 'none' }}
-                onChange={handleExcelUpload}
-                disabled={isLoading}
-              />
-            </label>
-
-            <div className="compose-cc-buttons">
-              <button 
-                onClick={() => setShowCc(!showCc)} 
-                className={`compose-cc-btn ${showCc ? 'active' : ''}`} 
-                disabled={isLoading}
-              >
-                Cc
-              </button>
-              <button 
-                onClick={() => setShowBcc(!showBcc)} 
-                className={`compose-cc-btn ${showBcc ? 'active' : ''}`} 
-                disabled={isLoading}
-              >
-                Bcc
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {showCc && (
-          <div className="compose-field-row">
-            <label className="compose-field-label">Cc</label>
-            <input
-              type="text"
-              value={cc}
-              onChange={(e) => setCc(e.target.value)}
-              className="compose-field-input"
-              placeholder="Carbon copy (separate with commas)"
-              disabled={isLoading}
-            />
-          </div>
-        )}
-
-        {showBcc && (
-          <div className="compose-field-row">
-            <label className="compose-field-label">Bcc</label>
-            <input
-              type="text"
-              value={bcc}
-              onChange={(e) => setBcc(e.target.value)}
-              className="compose-field-input"
-              placeholder="Blind carbon copy (separate with commas)"
-              disabled={isLoading}
-            />
-          </div>
-        )}
-
-        <div className="compose-field-row">
-          <label className="compose-field-label">Subject</label>
-          <input
-            type="text"
-            value={subject}
-            onChange={(e) => {
-              setSubject(e.target.value);
-              if (e.target.value.trim()) {
-                setErrors(prev => ({ ...prev, subject: undefined }));
-              }
-            }}
-            className={`compose-field-input ${errors.subject ? 'error' : ''}`}
-            placeholder="Enter subject"
-            disabled={isLoading}
-          />
-        </div>
-
-        {to.length > 0 && (
-          <div className="compose-field-row">
-            <div className="recipients-count">
-              📊 Total Recipients: <strong>{to.length}</strong> email addresses
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="compose-content-area">
-        <div
-          ref={editorRef}
-          className={`compose-editor ${errors.content ? 'error' : ''}`}
-          contentEditable
-          onInput={() => {
-            if (editorRef.current?.innerHTML.trim() && editorRef.current.innerHTML !== '<div><br></div>') {
-              setErrors(prev => ({ ...prev, content: undefined }));
-            }
-          }}
-          style={{
-            fontFamily:
-              fontFamily === 'Serif'
-                ? 'Georgia, serif'
-                : fontFamily === 'Arial'
-                ? 'Arial, sans-serif'
-                : fontFamily === 'Times'
-                ? "'Times New Roman', serif"
-                : 'system-ui, sans-serif',
-          }}
-        />
-      </div>
-
-      <div className="compose-bottom-toolbar">
-        <div className="compose-toolbar-left">
-          <button 
-            className="compose-send-button" 
-            onClick={handleSendBulkEmail}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Sending...' : 'Send'}
+    <div className="details-popup-overlay" onClick={onClose}>
+      <div className="details-popup" onClick={(e) => e.stopPropagation()}>
+        <div className="details-header">
+          <h3>📧 {bulk.subject || 'Untitled Campaign'}</h3>
+          <button className="close-btn" onClick={onClose}>
+            <X size={20} />
           </button>
-          <button 
-            className="compose-send-button" 
-            onClick={scheduleSend}
-            disabled={isLoading}
-          >
-            Schedule Send
-          </button>
+        </div>
+        
+        <div className="details-content">
+          <div className="details-meta">
+            <p><strong>Sender:</strong> {bulk.sender_email}</p>
+            <p><strong>Date:</strong> {new Date(bulk.sent_time || bulk.timestamp).toLocaleString()}</p>
+            <p><strong>Total Recipients:</strong> {totalEmails}</p>
+          </div>
 
-          <div className="compose-attachment-buttons">
-            <label className="compose-attachment-btn" title="Attach file">
-              <Paperclip size={18} />
-              <input 
-                type="file" 
-                style={{ display: 'none' }} 
-                onChange={handleFileUpload} 
-                multiple 
-                disabled={isLoading}
+          <div className="details-section">
+            <h4>Email Content</h4>
+            {bulk.content_html ? (
+              <div
+                className="email-content-preview"
+                style={{
+                  border: '1px solid #e5e7eb',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#f9fafb',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}
+                dangerouslySetInnerHTML={{ __html: bulk.content_html }}
               />
-            </label>
-            <button className="compose-attachment-btn" title="Insert image" onClick={insertImage} disabled={isLoading}>
-              <Image size={18} />
-            </button>
-            <button className="compose-attachment-btn" title="Edit signature" disabled={isLoading}>
-              <Edit3 size={18} />
+            ) : bulk.content ? (
+              <pre
+                className="email-content-preview"
+                style={{
+                  border: '1px solid #e5e7eb',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#f9fafb',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}
+              >
+                {bulk.content}
+              </pre>
+            ) : (
+              <p className="no-content">No content available</p>
+            )}
+          </div>
+
+          <div className="details-section">
+            <h4>✅ Successfully Sent ({bulk.sent_emails?.length || 0})</h4>
+            {bulk.sent_emails && bulk.sent_emails.length > 0 ? (
+              <div className="emails-list">
+                {bulk.sent_emails.slice(0, 10).map((email, index) => (
+                  <div key={index} className="email-item success">
+                    <CheckCircle size={14} /> {email}
+                  </div>
+                ))}
+                {bulk.sent_emails.length > 10 && (
+                  <p className="more-emails">+{bulk.sent_emails.length - 10} more emails</p>
+                )}
+              </div>
+            ) : (
+              <p className="no-emails">No successful deliveries</p>
+            )}
+          </div>
+
+          <div className="details-section">
+            <h4>❌ Failed Deliveries ({bulk.failed_emails?.length || 0})</h4>
+            {bulk.failed_emails && bulk.failed_emails.length > 0 ? (
+              <div className="emails-list">
+                {bulk.failed_emails.slice(0, 10).map((email, index) => (
+                  <div key={index} className="email-item failed">
+                    <XCircle size={14} /> {email}
+                  </div>
+                ))}
+                {bulk.failed_emails.length > 10 && (
+                  <p className="more-emails">+{bulk.failed_emails.length - 10} more emails</p>
+                )}
+              </div>
+            ) : (
+              <p className="no-emails">No failed deliveries</p>
+            )}
+          </div>
+
+          <div className="details-actions">
+            <button className="action-btn secondary" onClick={onClose}>
+              Close
             </button>
           </div>
         </div>
-
-        <button className="compose-delete-btn" title="Delete" disabled={isLoading}>
-          <Trash2 size={18} />
-        </button>
       </div>
     </div>
   );
