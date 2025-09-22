@@ -20,7 +20,7 @@ html, body, #root {
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: 24px 20px 100px 20px; /* Adequate bottom padding for footer */
+  padding: 24px 20px 100px 20px; /* Added bottom padding for footer */
   overflow: auto;
   box-sizing: border-box;
   width: 100%;
@@ -184,16 +184,16 @@ html, body, #root {
   background-color: white;
   border-top: none;
   padding: 10px 0 12px 0;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-  margin: 0;
-  border-radius: 0 0 10px 10px;
+  box-shadow: none;
+  margin: 0 24px 24px 24px;
+  border-radius: 20px;
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 48px);
+  max-width: 400px;
   z-index: 100;
-  border-top: 1px solid #e5e7eb;
 }
 
 .footer-nav-container {
@@ -1271,9 +1271,8 @@ html, body, #root {
   }
   
   .footer-nav {
-    max-width: 100%;
-    border-radius: 20px 20px 0 0;
-    margin: 0;
+    margin: 0 16px 16px 16px;
+    width: calc(100% - 32px);
   }
   
   .header {
@@ -1299,8 +1298,7 @@ html, body, #root {
   }
   
   .footer-nav-container {
-    gap: 40px;
-    padding: 0 16px;
+    gap: 20px;
   }
   
   .footer-nav-item {
@@ -1384,22 +1382,16 @@ html, body, #root {
 }
 
 @media (max-width: 480px) {
-  .main-content {
-    padding: 12px 12px 100px 12px;
-  }
-
   .footer-nav-container {
-    gap: 30px;
-    padding: 0 12px;
+    gap: 15px;
   }
   
   .footer-nav-item {
-    padding: 10px 12px;
-    min-width: 55px;
+    padding: 8px 12px;
   }
   
   .footer-nav-text {
-    font-size: 10px;
+    font-size: 11px;
   }
   
   .compose-fields {
