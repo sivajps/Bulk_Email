@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle } from 'lucide-react';
+import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle, Calendar, X } from 'lucide-react';
 import './compose.css';
 
 const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
@@ -13,6 +13,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   const [signature, setSignature] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
   const editorRef = useRef(null);
   const excelFileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
@@ -27,22 +30,46 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }
   }, [errors.successMessage]);
 
+  // Get min and max dates (today to 10 days from now)
+  const getDateLimits = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 10);
+    
+    return {
+      min: today.toISOString().split('T')[0],
+      max: maxDate.toISOString().split('T')[0]
+    };
+  };
+
+  // Get minimum time for today
+  const getMinTime = () => {
+    const now = new Date();
+    const selectedDate = new Date(scheduleDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (selectedDate.getTime() === today.getTime()) {
+      // If selected date is today, minimum time is current time + 5 minutes
+      const minTime = new Date(now.getTime() + 5 * 60000);
+      return minTime.toTimeString().slice(0, 5);
+    }
+    return '00:00';
+  };
+
   // Function to convert HTML to plain text while preserving all whitespace and line breaks
   const htmlToPlainText = (html) => {
     if (!html || typeof html !== 'string') return '';
-    // Create a temporary div to parse HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     let text = tempDiv.textContent || tempDiv.innerText || '';
-    // Preserve line breaks and spaces
-    text = text.replace(/(\r\n|\n|\r)/gm, ''); // Remove existing newlines
-    text = text.replace(/<(p|div|br)[^>]*>/gi, '\n'); // Add newlines for block tags
-    text = text.replace(/<\/(p|div)>/gi, '\n'); // Add newlines for closing block tags
-    text = text.replace(/<[^>]+>/g, ''); // Remove remaining HTML tags
-    text = text.replace(/\u00A0/g, ' '); // Replace non-breaking spaces with regular spaces
-    // Preserve multiple spaces and single newlines
-    text = text.replace(/\n\s*\n+/g, '\n'); // Collapse multiple newlines to single
-    return text; // Do not trim to preserve leading/trailing spaces
+    text = text.replace(/(\r\n|\n|\r)/gm, '');
+    text = text.replace(/<(p|div|br)[^>]*>/gi, '\n');
+    text = text.replace(/<\/(p|div)>/gi, '\n');
+    text = text.replace(/<[^>]+>/g, '');
+    text = text.replace(/\u00A0/g, ' ');
+    text = text.replace(/\n\s*\n+/g, '\n');
+    return text;
   };
 
   // Initialize contentEditable
@@ -75,8 +102,8 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       newErrors.attachments = 'Cannot attach more than 5 files';
     }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB per file
-    attachments.forEach((file, index) => {
+    const maxSize = 10 * 1024 * 1024;
+    attachments.forEach((file) => {
       if (file.size > maxSize) {
         newErrors.attachments = newErrors.attachments || [];
         newErrors.attachments.push(`File "${file.name}" exceeds 10MB limit`);
@@ -85,6 +112,38 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Validate schedule form
+  const validateScheduleForm = () => {
+    if (!scheduleDate) {
+      setErrors(prev => ({ ...prev, schedule: 'Please select a date' }));
+      return false;
+    }
+
+    if (!scheduleTime) {
+      setErrors(prev => ({ ...prev, schedule: 'Please select a time' }));
+      return false;
+    }
+
+    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+    const now = new Date();
+    
+    if (scheduledDateTime <= now) {
+      setErrors(prev => ({ ...prev, schedule: 'Scheduled time must be in the future' }));
+      return false;
+    }
+
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 10);
+    
+    if (scheduledDateTime > maxDate) {
+      setErrors(prev => ({ ...prev, schedule: 'Cannot schedule more than 10 days in advance' }));
+      return false;
+    }
+
+    setErrors(prev => ({ ...prev, schedule: undefined }));
+    return true;
   };
 
   // Excel upload handler
@@ -102,7 +161,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       return;
     }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       setErrors(prev => ({ ...prev, excelFile: 'File size must be less than 10MB' }));
       return;
@@ -127,8 +186,8 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
 
     e.target.value = '';
     const validExtensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.zip'];
-    const maxSize = 10 * 1024 * 1024; // 10MB per file
-    const maxFiles = 5; // Max number of attachments
+    const maxSize = 10 * 1024 * 1024;
+    const maxFiles = 5;
 
     const newAttachments = [];
     const attachmentErrors = [];
@@ -184,7 +243,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   };
 
   // Send bulk email handler
-  const handleSendBulkEmail = async () => {
+  const handleSendBulkEmail = async (isScheduled = false) => {
     if (!validateForm()) {
       return;
     }
@@ -194,7 +253,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     formData.append('subject', subject);
     
     let contentHTML = editorRef.current?.innerHTML || '';
-    // Wrap content in <pre> to preserve whitespace in HTML
     contentHTML = `<pre style="white-space: pre-wrap;">${contentHTML}</pre>`;
     contentHTML = contentHTML
       .replace(/<div><br><\/div>/g, '<br>')
@@ -217,6 +275,13 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     
     if (cc) formData.append('cc', cc);
     if (bcc) formData.append('bcc', bcc);
+    
+    // Add schedule information if this is a scheduled send
+    if (isScheduled) {
+      const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+      formData.append('scheduledTime', scheduledDateTime.toISOString());
+    }
+    
     attachments.forEach((file, index) => {
       formData.append(`attachment${index}`, file);
     });
@@ -226,7 +291,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     if (result.success) {
       setErrors(prev => ({
         ...prev,
-        successMessage: result.message,
+        successMessage: isScheduled ? 
+          `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
+          result.message,
       }));
       setExcelFile(null);
       setSubject('');
@@ -235,6 +302,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       setAttachments([]);
       setShowCc(false);
       setShowBcc(false);
+      setScheduleDate('');
+      setScheduleTime('');
+      setShowScheduleModal(false);
       setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined }));
       if (editorRef.current) {
         editorRef.current.innerHTML = '';
@@ -244,16 +314,28 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }
   };
 
-  // Schedule send
-  const scheduleSend = () => {
+  // Open schedule modal
+  const openScheduleModal = () => {
     if (!validateForm()) {
       return;
     }
+    
+    const { min } = getDateLimits();
+    setScheduleDate(min);
+    
+    const now = new Date();
+    const minTime = new Date(now.getTime() + 5 * 60000);
+    setScheduleTime(minTime.toTimeString().slice(0, 5));
+    
+    setShowScheduleModal(true);
+  };
 
-    setErrors(prev => ({ ...prev, successMessage: 'Email scheduled to be sent in 5 seconds' }));
-    setTimeout(() => {
-      handleSendBulkEmail();
-    }, 5000);
+  // Confirm scheduled send
+  const confirmScheduledSend = () => {
+    if (!validateScheduleForm()) {
+      return;
+    }
+    handleSendBulkEmail(true);
   };
 
   // Formatting function
@@ -308,35 +390,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       }, 50);
     } catch (error) {
       console.error('Formatting error:', error);
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const hasSelection = !range.collapsed;
-        
-        if (hasSelection) {
-          range.surroundContents(
-            command === 'bold' ? document.createElement('strong') :
-            command === 'italic' ? document.createElement('em') :
-            command === 'underline' ? document.createElement('u') : document.createElement('span')
-          );
-        } else {
-          const formattedSpan = document.createElement(
-            command === 'bold' ? 'strong' :
-            command === 'italic' ? 'em' :
-            command === 'underline' ? 'u' : 'span'
-          );
-          
-          if (command === 'bold') formattedSpan.style.fontWeight = 'bold';
-          if (command === 'italic') formattedSpan.style.fontStyle = 'italic';
-          if (command === 'underline') formattedSpan.style.textDecoration = 'underline';
-          
-          range.insertNode(formattedSpan);
-          range.setStart(formattedSpan, 0);
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
     }
   };
 
@@ -348,6 +401,8 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
     }
   };
 
+  const { min: minDate, max: maxDate } = getDateLimits();
+
   return (
     <div className="email-compose-container">
       {isLoading && (
@@ -356,6 +411,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         </div>
       )}
 
+      {/* Error/Success Messages */}
       {(errors.excelFile || errors.subject || errors.content || errors.attachments || errors.successMessage || errors.errorMessage) && (
         <div className="compose-error-container">
           {errors.excelFile && (
@@ -403,6 +459,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
         </div>
       )}
 
+      {/* Form Fields */}
       <div className="compose-fields">
         <div className="field-row">
           <label className="field-label">Recipients <span className="required">*</span></label>
@@ -430,7 +487,6 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
                 onClick={(e) => e.stopPropagation()}
               />
               <span>{excelFile ? `${excelFile.name}` : 'Upload Excel File'}</span>
-              {isLoading && <span className="loading-indicator">⏳</span>}
             </label>
 
             <div className="cc-bcc-buttons">
@@ -559,7 +615,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           className={`content-editable ${errors.content ? 'error' : ''} ${!isLoading ? 'focused' : ''}`}
           contentEditable={!isLoading}
           suppressContentEditableWarning={true}
-          style={{ whiteSpace: 'pre-wrap' }} // Preserve whitespace in editor
+          style={{ whiteSpace: 'pre-wrap' }}
           placeholder="Write your email content here..."
           onInput={(e) => {
             const contentHTML = e.currentTarget.innerHTML || '';
@@ -601,17 +657,19 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       <div className="bottom-toolbar">
         <div className="toolbar-left">
           <button
-            onClick={handleSendBulkEmail}
+            onClick={() => handleSendBulkEmail(false)}
             className="send-button"
             disabled={isLoading}
           >
             {isLoading ? 'Sending...' : 'Send'}
           </button>
           <button
-            onClick={scheduleSend}
+            onClick={openScheduleModal}
             className="send-button"
             disabled={isLoading}
+            style={{ backgroundColor: '#16a34a' }}
           >
+            <Clock size={16} style={{ marginRight: '4px' }} />
             Schedule Send
           </button>
           <div className="insert-buttons">
@@ -650,6 +708,105 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
           </div>
         </div>
       </div>
+
+      {/* Schedule Modal */}
+      {showScheduleModal && (
+        <div className="schedule-modal-overlay">
+          <div className="schedule-modal">
+            <div className="schedule-modal-header">
+              <h3 className="schedule-modal-title">
+                <Calendar size={20} />
+                Schedule Email
+              </h3>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="schedule-modal-close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="schedule-modal-content">
+              <div className="schedule-field">
+                <label className="schedule-field-label">
+                  Select Date
+                </label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={minDate}
+                  max={maxDate}
+                  className="schedule-date-input"
+                />
+                <p className="schedule-field-hint">
+                  You can schedule up to 10 days in advance
+                </p>
+              </div>
+
+              <div className="schedule-field">
+                <label className="schedule-field-label">
+                  Select Time
+                </label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  min={scheduleDate === minDate ? getMinTime() : '00:00'}
+                  className="schedule-time-input"
+                />
+                <p className="schedule-field-hint">
+                  {scheduleDate === minDate 
+                    ? 'Minimum 5 minutes from now for today' 
+                    : 'Any time for future dates'
+                  }
+                </p>
+              </div>
+
+              {scheduleDate && scheduleTime && (
+                <div className="schedule-preview">
+                  <p className="schedule-preview-text">
+                    <strong>Scheduled for:</strong><br />
+                    {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })} at {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {errors.schedule && (
+                <div className="schedule-error">
+                  <AlertCircle size={16} />
+                  <span>{errors.schedule}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="schedule-modal-actions">
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="schedule-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmScheduledSend}
+                className="schedule-confirm-btn"
+                disabled={!scheduleDate || !scheduleTime}
+              >
+                Schedule Email
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
