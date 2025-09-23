@@ -1,9 +1,10 @@
 import React from 'react';
-import Dashboard from './dashboard';
+// import Dashboard from './dashboard';
 import './App.css';
+import Inbox from './inbox.jsx';
 
 function App() {
-  return <Dashboard />;
+  return <Inbox />;
 }
 
 export default App;
