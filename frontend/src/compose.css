@@ -29,23 +29,55 @@ body {
   height: 100vh;
   min-height: 600px;
   position: relative;
+  overflow: hidden; /* Important for loading overlay */
 }
 
-/* Loading overlay */
+/* Loading overlay - UPDATED FOR REACT COMPONENT */
 .loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.75);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  color: #e6f0fa;
-  font-size: 16px;
-  font-weight: 500;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  animation: fadeIn 0.2s ease-in-out;
+  gap: 16px;
+}
+
+/* Add spinner before the text using CSS */
+.loading-overlay::before {
+  content: "";
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Error container */
@@ -121,6 +153,7 @@ body {
   outline: none;
   background-color: #ffffff;
   color: #1e293b;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .field-input:focus {
@@ -137,6 +170,7 @@ body {
   background-color: #e2e8f0;
   cursor: not-allowed;
   color: #64748b;
+  opacity: 0.6;
 }
 
 .field-input::placeholder {
@@ -210,11 +244,6 @@ body {
   color: #3b73e4;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 .excel-upload span {
   flex: 1;
   min-width: 0;
@@ -243,6 +272,7 @@ body {
   color: #1e3a8a;
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .cc-bcc-button:hover:not(:disabled) {
@@ -374,22 +404,7 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
   cursor: text;
-}
-
-.content-editable {
-  white-space: pre-wrap; /* Preserve spaces and line breaks */
-  border: 1px solid #e5e7eb;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  min-height: 200px;
-  outline: none;
-}
-.content-editable.focused {
-  border-color: #3b82f6;
-}
-.content-editable[placeholder]:empty:before {
-  content: attr(placeholder);
-  color: #9ca3af;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .content-editable:focus,
@@ -431,17 +446,6 @@ body {
 
 .content-editable br {
   line-height: 1.2;
-}
-
-.content-editable img {
-  max-width: 100% !important;
-  height: auto !important;
-  border-radius: 6px !important;
-  margin: 12px 0 !important;
-  display: block !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-  border: 1px solid #d4d9e1 !important;
-  vertical-align: middle !important;
 }
 
 .content-editable:empty::before {
@@ -488,6 +492,7 @@ body {
   flex: 1;
 }
 
+/* UPDATED SEND BUTTON STYLES FOR LOADING STATE */
 .send-button {
   padding: 8px 16px;
   background-color: #187dcf;
@@ -498,6 +503,8 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
+  min-width: 80px;
 }
 
 .send-button:hover:not(:disabled) {
@@ -518,6 +525,22 @@ body {
   background-color: #94a3b8;
   cursor: not-allowed;
   transform: none;
+  opacity: 0.7;
+}
+
+/* Specific styles for when button shows "Sending..." */
+.send-button:disabled:after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 .insert-buttons {
@@ -599,10 +622,6 @@ body {
   max-width: 100%;
 }
 
-.dark .attachment-item {
-  background: #4b5563;
-}
-
 .attachment-name {
   font-size: 14px;
   color: #374151;
@@ -610,10 +629,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.dark .attachment-name {
-  color: #f3f4f6;
 }
 
 .remove-attachment-button {
@@ -633,25 +648,13 @@ body {
   flex-shrink: 0;
 }
 
-.dark .remove-attachment-button {
-  background: #f87171;
-}
-
 .remove-attachment-button:hover:not(:disabled) {
   background: #dc2626;
-}
-
-.dark .remove-attachment-button:hover:not(:disabled) {
-  background: #ef4444;
 }
 
 .remove-attachment-button:disabled {
   background: #d1d5db;
   cursor: not-allowed;
-}
-
-.dark .remove-attachment-button:disabled {
-  background: #6b7280;
 }
 
 /* Responsive Design */
@@ -702,12 +705,6 @@ body {
     padding: 10px !important;
   }
 
-  .content-editable strong,
-  .content-editable em,
-  .content-editable u {
-    font-size: 16px !important;
-  }
-
   .content-editable:empty::before {
     top: 10px !important;
     left: 10px !important;
@@ -736,25 +733,6 @@ body {
   .send-button {
     flex: 1;
     min-width: 120px;
-  }
-
-  .insert-buttons label.toolbar-button {
-    width: 32px !important;
-    height: 32px !important;
-  }
-
-  .attachment-item {
-    padding: 6px 10px;
-  }
-
-  .attachment-name {
-    font-size: 13px;
-  }
-
-  .remove-attachment-button {
-    width: 24px;
-    height: 24px;
-    padding: 4px;
   }
 }
 
@@ -814,30 +792,10 @@ body {
     padding: 8px !important;
   }
 
-  .content-editable strong,
-  .content-editable em,
-  .content-editable u {
-    font-size: 16px !important;
-  }
-
   .content-editable:empty::before {
     top: 8px !important;
     left: 8px !important;
     font-size: 16px !important;
-  }
-
-  .attachment-item {
-    padding: 4px 8px;
-  }
-
-  .attachment-name {
-    font-size: 12px;
-  }
-
-  .remove-attachment-button {
-    width: 20px;
-    height: 20px;
-    padding: 3px;
   }
 }
 

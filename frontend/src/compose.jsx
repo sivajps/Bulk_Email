@@ -430,7 +430,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
                 onClick={(e) => e.stopPropagation()}
               />
               <span>{excelFile ? `${excelFile.name}` : 'Upload Excel File'}</span>
-              {isLoading && <span className="loading-indicator">⏳</span>}
+              {/* {isLoading && <span className="loading-indicator">⏳</span>} */}
             </label>
 
             <div className="cc-bcc-buttons">
