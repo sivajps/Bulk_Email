@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Inbox as InboxIcon, Edit3, Settings, X, AlertCircle } from 'lucide-react';
+import { Inbox as InboxIcon, Edit3, Settings, X, AlertCircle, BarChart3, TrendingUp, Users, Send, MailOpen, Clock, ArrowUp, ArrowDown, PieChart, Calendar, Target, Zap } from 'lucide-react';
 import EmailComposeWindow from './compose';
 import InboxContent from './inboxContent';
 import EmailConfiguration from './EmailConfiguration';
 import './inbox.css';
 
 const Inbox = () => {
-  const [activeTab, setActiveTab] = useState('Inbox');
+  const [activeTab, setActiveTab] = useState('Dashboard');
   const [showConfigPopup, setShowConfigPopup] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalCampaigns: 0,
+    totalEmails: 0,
+    successRate: 0,
+    openRate: 0,
+    recentActivity: [],
+    performanceData: []
+  });
 
   const menuItems = [
-    { name: 'Inbox', icon: InboxIcon },
+    { name: 'Dashboard', icon: BarChart3 },
+    { name: 'Campaigns', icon: InboxIcon },
     { name: 'Compose', icon: Edit3 },
     { name: 'Configure', icon: Settings },
   ];
@@ -23,6 +32,9 @@ const Inbox = () => {
       try {
         const response = await fetch('http://localhost:5000/');
         setIsBackendConnected(response.ok);
+        if (response.ok) {
+          fetchDashboardStats();
+        }
       } catch {
         setIsBackendConnected(false);
       }
@@ -35,6 +47,54 @@ const Inbox = () => {
     setIsConfigured(configured === 'true');
   }, []);
 
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/recent_bulk');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          calculateStats(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const calculateStats = (bulkData) => {
+    const totalCampaigns = bulkData.length;
+    let totalEmails = 0;
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
+    bulkData.forEach(campaign => {
+      totalEmails += (campaign.success_count || 0) + (campaign.failed_count || 0);
+      totalSuccess += campaign.success_count || 0;
+      totalFailed += campaign.failed_count || 0;
+    });
+
+    const successRate = totalEmails > 0 ? ((totalSuccess / totalEmails) * 100) : 0;
+    const openRate = 65.2; // Simulated open rate data
+
+    // Generate performance data for charts
+    const performanceData = bulkData.slice(0, 5).map(campaign => ({
+      name: campaign.subject?.substring(0, 12) + '...',
+      sent: campaign.success_count || 0,
+      failed: campaign.failed_count || 0,
+      successRate: campaign.success_count && campaign.failed_count ? 
+        Math.round((campaign.success_count / (campaign.success_count + campaign.failed_count)) * 100) : 0
+    }));
+
+    setDashboardStats({
+      totalCampaigns,
+      totalEmails,
+      successRate: Math.round(successRate),
+      openRate,
+      recentActivity: bulkData.slice(0, 4),
+      performanceData
+    });
+  };
+
   const handleConfigure = (email, password) => {
     setIsConfigured(true);
     localStorage.setItem('emailConfigured', 'true');
@@ -43,7 +103,6 @@ const Inbox = () => {
 
   const handleConfigureRedirect = () => setActiveTab('Configure');
 
-  // sendBulkEmail function
   const sendBulkEmail = async (formData) => {
     if (!isConfigured) {
       setShowConfigPopup(true);
@@ -82,6 +141,9 @@ const Inbox = () => {
         const sentCount = Object.values(results).filter(status => status.includes('sent')).length;
         const failedCount = Object.values(results).filter(status => status.includes('failed')).length;
 
+        // Refresh stats after sending
+        fetchDashboardStats();
+
         return {
           success: true,
           message: `✅ Bulk Email Sent Successfully!\n\n📧 Sent: ${sentCount} emails\n❌ Failed: ${failedCount} emails`,
@@ -116,20 +178,25 @@ const Inbox = () => {
       )}
 
       <div className="main-content">
-        <h2 className="page-title">{activeTab}</h2>
-        <div className="content-wrapper">
-          <div className={`content ${activeTab !== 'Inbox' ? 'content-full' : 'content-padded'}`}>
-            {activeTab === 'Inbox' && <InboxContent setActiveTab={setActiveTab} />}
-            {activeTab === 'Compose' && (
-              <EmailComposeWindow
-                isConfigured={isConfigured}
-                showConfigPopup={() => setShowConfigPopup(true)}
-                sendBulkEmail={sendBulkEmail}
-                isLoading={isLoading}
-              />
-            )}
-            {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
-          </div>
+        {activeTab === 'Dashboard' && (
+          <DashboardView 
+            stats={dashboardStats}
+            onCompose={() => setActiveTab('Compose')}
+            onViewCampaigns={() => setActiveTab('Campaigns')}
+          />
+        )}
+        
+        <div className={`content ${activeTab !== 'Dashboard' ? 'content-full' : 'content-padded'}`}>
+          {activeTab === 'Campaigns' && <InboxContent setActiveTab={setActiveTab} />}
+          {activeTab === 'Compose' && (
+            <EmailComposeWindow
+              isConfigured={isConfigured}
+              showConfigPopup={() => setShowConfigPopup(true)}
+              sendBulkEmail={sendBulkEmail}
+              isLoading={isLoading}
+            />
+          )}
+          {activeTab === 'Configure' && <EmailConfiguration onConfigure={handleConfigure} />}
         </div>
       </div>
 
@@ -151,6 +218,280 @@ const Inbox = () => {
           })}
         </nav>
       </footer>
+    </div>
+  );
+};
+
+const DashboardView = ({ stats, onCompose, onViewCampaigns }) => {
+  return (
+    <div className="dashboard-wrapper">
+      {/* Header Section */}
+      <div className="dashboard-header">
+        <div className="header-content">
+          <div>
+            <h1 className="dashboard-title">
+              <BarChart3 className="title-icon" />
+              Email Analytics Dashboard
+            </h1>
+            <p className="dashboard-subtitle">Monitor your email campaign performance</p>
+          </div>
+          <div className="header-stats">
+            <div className="header-stat">
+              <span className="stat-label">Active Campaigns</span>
+              <span className="stat-value success">{stats.recentActivity.length}</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-label">Success Rate</span>
+              <span className="stat-value success">{stats.successRate}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <StatCard
+          type="primary"
+          icon={<Send className="stat-icon" />}
+          title="Total Campaigns"
+          value={stats.totalCampaigns}
+          trend={{ value: 12, positive: true }}
+        />
+        <StatCard
+          type="success"
+          icon={<Users className="stat-icon" />}
+          title="Emails Sent"
+          value={stats.totalEmails.toLocaleString()}
+          trend={{ value: 8, positive: true }}
+        />
+        <StatCard
+          type="warning"
+          icon={<Target className="stat-icon" />}
+          title="Success Rate"
+          value={`${stats.successRate}%`}
+          trend={{ value: 5, positive: true }}
+        />
+        <StatCard
+          type="info"
+          icon={<MailOpen className="stat-icon" />}
+          title="Avg. Open Rate"
+          value={`${stats.openRate}%`}
+          trend={{ value: 3, positive: false }}
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="charts-section">
+        <div className="chart-card large">
+          <div className="chart-header">
+            <h3 className="chart-title">
+              <TrendingUp className="chart-title-icon" />
+              Campaign Performance
+            </h3>
+          </div>
+          <PerformanceChart data={stats.performanceData} />
+        </div>
+        
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">
+              <PieChart className="chart-title-icon" />
+              Delivery Stats
+            </h3>
+          </div>
+          <DeliveryPieChart stats={stats} />
+        </div>
+      </div>
+
+      {/* Quick Actions & Recent Activity */}
+      <div className="action-activity-section">
+        <div className="quick-actions-card">
+          <div className="section-header">
+            <h3 className="section-title">
+              <Zap className="section-icon" />
+              Quick Actions
+            </h3>
+          </div>
+          <div className="action-buttons-grid">
+            <button className="action-btn primary" onClick={onCompose}>
+              <Edit3 size={20} />
+              New Campaign
+            </button>
+            <button className="action-btn secondary" onClick={onViewCampaigns}>
+              <InboxIcon size={20} />
+              View Campaigns
+            </button>
+            <button className="action-btn secondary">
+              <BarChart3 size={20} />
+              Generate Report
+            </button>
+            <button className="action-btn secondary">
+              <Calendar size={20} />
+              Schedule Send
+            </button>
+          </div>
+        </div>
+
+        <div className="recent-activity-card">
+          <div className="section-header">
+            <h3 className="section-title">
+              <Clock className="section-icon" />
+              Recent Activity
+            </h3>
+          </div>
+          <RecentActivityList activities={stats.recentActivity} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatCard = ({ type, icon, title, value, trend }) => (
+  <div className={`stat-card ${type}`}>
+    <div className="stat-card-content">
+      <div className="stat-info">
+        <h3 className="stat-number">{value}</h3>
+        <span className="stat-label">{title}</span>
+        <div className={`stat-trend ${trend.positive ? 'positive' : 'negative'}`}>
+          {trend.positive ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+          {trend.value}% from last month
+        </div>
+      </div>
+      <div className={`stat-icon-wrapper ${type}-bg`}>
+        {icon}
+      </div>
+    </div>
+  </div>
+);
+
+const PerformanceChart = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="empty-chart">
+        <BarChart3 size={48} color="#9ca3af" />
+        <p>No campaign data available</p>
+        <p className="empty-chart-subtitle">Start sending campaigns to see analytics</p>
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(...data.map(d => d.sent + d.failed));
+
+  return (
+    <div className="chart-container">
+      <div className="bar-chart-vertical">
+        {data.map((item, index) => {
+          const total = item.sent + item.failed;
+          const heightPercentage = maxValue > 0 ? (total / maxValue) * 100 : 0;
+          
+          return (
+            <div key={index} className="bar-chart-item">
+              <div className="bar-labels">
+                <span className="bar-label">{item.name}</span>
+                <span className="bar-value">{total} emails</span>
+              </div>
+              <div className="bar-track-vertical">
+                <div 
+                  className="bar-fill-vertical success"
+                  style={{ height: `${(item.sent / maxValue) * 100}%` }}
+                ></div>
+                <div 
+                  className="bar-fill-vertical failed"
+                  style={{ height: `${(item.failed / maxValue) * 100}%` }}
+                ></div>
+              </div>
+              <div className="bar-stats">
+                <span className="success-stat">{item.sent}✓</span>
+                <span className="failed-stat">{item.failed}✗</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const DeliveryPieChart = ({ stats }) => {
+  const total = stats.totalEmails;
+  const success = Math.round((stats.successRate / 100) * total);
+  const failed = total - success;
+
+  if (total === 0) {
+    return (
+      <div className="empty-chart">
+        <PieChart size={48} color="#9ca3af" />
+        <p>No delivery data</p>
+      </div>
+    );
+  }
+
+  const successPercentage = Math.round((success / total) * 100);
+  const failedPercentage = 100 - successPercentage;
+
+  return (
+    <div className="pie-chart-container">
+      <div className="pie-chart-visual">
+        <div 
+          className="pie-chart" 
+          style={{
+            background: `conic-gradient(
+              #10b981 0% ${successPercentage}%,
+              #ef4444 ${successPercentage}% 100%
+            )`
+          }}
+        ></div>
+      </div>
+      <div className="pie-legend">
+        <div className="legend-item">
+          <div className="legend-color success"></div>
+          <span className="legend-label">Successful</span>
+          <span className="legend-value">{successPercentage}%</span>
+        </div>
+        <div className="legend-item">
+          <div className="legend-color failed"></div>
+          <span className="legend-label">Failed</span>
+          <span className="legend-value">{failedPercentage}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RecentActivityList = ({ activities }) => {
+  if (!activities || activities.length === 0) {
+    return (
+      <div className="empty-activity">
+        <InboxIcon size={32} color="#9ca3af" />
+        <p>No recent activity</p>
+        <p className="empty-activity-subtitle">Your campaigns will appear here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="activity-list">
+      {activities.map((activity, index) => (
+        <div key={index} className="activity-item">
+          <div className="activity-icon-wrapper">
+            <Send size={16} />
+          </div>
+          <div className="activity-content">
+            <div className="activity-title">{activity.subject || 'Untitled Campaign'}</div>
+            <div className="activity-meta">
+              <span className="activity-date">
+                {new Date(activity.sent_time || activity.timestamp).toLocaleDateString()}
+              </span>
+              <span className="activity-stats">
+                {activity.success_count || 0} sent • {activity.failed_count || 0} failed
+              </span>
+            </div>
+          </div>
+          <div className={`activity-status ${(activity.success_count || 0) > (activity.failed_count || 0) ? 'success' : 'warning'}`}>
+            {(activity.success_count || 0) > (activity.failed_count || 0) ? '✓' : '⚠'}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
