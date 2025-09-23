@@ -1,5 +1,5 @@
 import React from 'react';
-// import Dashboard from './dashboard';
+// import EmailDashboard from './dashboard';
 import './App.css';
 import Inbox from './inbox.jsx';
 

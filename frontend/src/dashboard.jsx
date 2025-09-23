@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import './EmailDashboard.css';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import './dashboard.css';
 
 const EmailDashboard = () => {
   const [stats, setStats] = useState({
-    sent: 12345,
+    sent: 12866,
     failed: 123,
-    sending: 32,
-    performance: 75,
+    sending: 38,
+    performance: 79,
     trend: 5
   });
 
@@ -25,7 +26,13 @@ const EmailDashboard = () => {
   }, []);
 
   const total = stats.sent + stats.failed + stats.sending;
-  
+
+  // Simulated trend data for the line chart (30 days, wavy pattern)
+  const trendData = Array.from({ length: 30 }, (_, i) => ({
+    day: i + 1,
+    value: total + 500 * Math.sin(i * 0.3) // Adjusted to match total scale
+  }));
+
   return (
     <div className="email-dashboard">
       <header className="dashboard-header">
@@ -48,7 +55,6 @@ const EmailDashboard = () => {
               <span>+{stats.trend}%</span>
             </div>
           </div>
-          
           <div className="performance-circle">
             <div className="circle-progress">
               <div 
@@ -61,7 +67,6 @@ const EmailDashboard = () => {
               </div>
             </div>
           </div>
-          
           <div className="stats-grid">
             <div className="stat-item">
               <div className="stat-value">{stats.sent.toLocaleString()}</div>
@@ -70,7 +75,6 @@ const EmailDashboard = () => {
                 Sent
               </div>
             </div>
-            
             <div className="stat-item">
               <div className="stat-value">{stats.failed}</div>
               <div className="stat-label">
@@ -78,7 +82,6 @@ const EmailDashboard = () => {
                 Failed
               </div>
             </div>
-            
             <div className="stat-item">
               <div className="stat-value">{stats.sending}</div>
               <div className="stat-label">
@@ -87,22 +90,19 @@ const EmailDashboard = () => {
               </div>
             </div>
           </div>
-          
           <div className="trend-footer">
             Last 30 Days <span className="trend-up">↑+{stats.trend}%</span>
           </div>
         </div>
-        
+
         <div className="delivery-card">
           <div className="card-header">
             <h2>Delivery Status</h2>
           </div>
-          
           <div className="total-deliveries">
             <span className="total-number">{total.toLocaleString()}</span>
             <span className="total-label">Total</span>
           </div>
-          
           <div className="delivery-breakdown">
             <div className="delivery-item">
               <div className="delivery-info">
@@ -111,7 +111,6 @@ const EmailDashboard = () => {
               </div>
               <div className="delivery-count">{stats.sent.toLocaleString()}</div>
             </div>
-            
             <div className="delivery-item">
               <div className="delivery-info">
                 <span className="dot failed"></span>
@@ -119,7 +118,6 @@ const EmailDashboard = () => {
               </div>
               <div className="delivery-count">{stats.failed}</div>
             </div>
-            
             <div className="delivery-item">
               <div className="delivery-info">
                 <span className="dot sending"></span>
@@ -129,6 +127,23 @@ const EmailDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Trend Chart */}
+      <div className="trend-chart-card">
+        <div className="card-header">
+          <h2>Email Performance Trend</h2>
+          <span>Last 30 Days</span>
+        </div>
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={trendData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ecf0f1" />
+            <XAxis dataKey="day" hide={true} />
+            <YAxis hide={true} />
+            <Tooltip />
+            <Line type="monotone" dataKey="value" stroke="#6a5acd" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

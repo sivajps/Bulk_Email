@@ -1,0 +1,270 @@
+/* EmailConfiguration.css */
+
+/* Container & Card */
+.configuration-container {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.configuration-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Titles & Subtitles */
+.configuration-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.configuration-subtitle {
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+/* Instructions */
+.configuration-instructions {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.instructions-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #374151;
+}
+
+.instructions-list {
+  padding-left: 20px;
+}
+
+.instructions-list li {
+  margin-bottom: 16px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.instructions-list a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.instructions-list a:hover {
+  text-decoration: underline;
+}
+
+/* Divider */
+.configuration-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 24px 0;
+}
+
+/* Form */
+.configuration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.configuration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.configuration-label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.configuration-input {
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.configuration-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Messages */
+.error-message {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.success-message {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Button */
+.configuration-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.configuration-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.configuration-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .configuration-card {
+    padding: 16px;
+  }
+
+  .configuration-title {
+    font-size: 20px;
+  }
+
+  .instructions-title {
+    font-size: 16px;
+  }
+
+  .configuration-input {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .configuration-button {
+    font-size: 14px;
+    padding: 10px 20px;
+  }
+}
+
+/* Responsive */
+
+/* Small devices (phones, <600px) */
+@media (max-width: 600px) {
+  .configuration-card {
+    padding: 16px;
+  }
+
+  .configuration-title {
+    font-size: 20px;
+  }
+
+  .instructions-title {
+    font-size: 16px;
+  }
+
+  .configuration-input {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .configuration-button {
+    font-size: 14px;
+    padding: 10px 20px;
+  }
+}
+
+/* Medium devices (tablets, 601px - 900px) */
+@media (min-width: 601px) and (max-width: 900px) {
+  .configuration-card {
+    padding: 20px;
+  }
+
+  .configuration-title {
+    font-size: 22px;
+  }
+
+  .instructions-title {
+    font-size: 17px;
+  }
+
+  .configuration-input {
+    font-size: 15px;
+    padding: 11px 15px;
+  }
+
+  .configuration-button {
+    font-size: 15px;
+    padding: 11px 22px;
+  }
+}
+
+/* Large devices (laptops, 901px - 1200px) */
+@media (min-width: 901px) and (max-width: 1200px) {
+  .configuration-card {
+    padding: 22px;
+  }
+
+  .configuration-title {
+    font-size: 23px;
+  }
+
+  .instructions-title {
+    font-size: 18px;
+  }
+
+  .configuration-input {
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+
+  .configuration-button {
+    font-size: 16px;
+    padding: 12px 24px;
+  }
+}
+
+/* Extra large devices (desktops, >1200px) */
+@media (min-width: 1201px) {
+  .configuration-card {
+    padding: 24px;
+  }
+
+  .configuration-title {
+    font-size: 24px;
+  }
+
+  .instructions-title {
+    font-size: 18px;
+  }
+
+  .configuration-input {
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+
+  .configuration-button {
+    font-size: 16px;
+    padding: 12px 24px;
+  }
+}
