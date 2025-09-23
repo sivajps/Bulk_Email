@@ -5,6 +5,8 @@
   padding: 20px;
   max-width: 600px;
   margin: 0 auto;
+  overflow: auto; /* Ensure scrolling is enabled */
+  padding-bottom: 80px; /* Extends scrollbar to account for footer */
 }
 
 .configuration-card {
