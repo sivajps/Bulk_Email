@@ -1,4 +1,4 @@
-/* Enhanced Professional Dashboard Styles */
+
 
 /* Dashboard Layout */
 .dashboard {
@@ -253,8 +253,17 @@
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+.chart-card.large {
+  grid-column: 1;
+}
+
 .chart-header {
-  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .chart-title {
@@ -273,74 +282,156 @@
   color: #6366f1;
 }
 
-/* Performance Chart */
-.bar-chart-vertical {
+.chart-legend {
   display: flex;
-  align-items: flex-end;
   gap: 16px;
-  height: 200px;
-  padding: 20px 0;
+  align-items: center;
 }
 
-.bar-chart-item {
+.chart-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.chart-legend .legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.chart-legend .legend-color.sent { background: linear-gradient(90deg, #10b981, #34d399); }
+.chart-legend .legend-color.failed { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+/* Enhanced Performance Chart */
+.performance-chart-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  height: 280px;
+}
+
+.y-axis {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 0;
+  height: 100%;
+}
+
+.y-tick {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
+  height: 0;
 }
 
-.bar-labels {
-  text-align: center;
+.y-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  transform: translateY(-50%);
 }
 
-.bar-label {
-  display: block;
-  font-size: 12px;
-  color: #6b7280;
+.chart-content {
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.bar-chart-horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.campaign-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.campaign-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.campaign-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.campaign-stats {
+  font-size: 11px;
+  color: #64748b;
   font-weight: 500;
 }
 
-.bar-value {
-  display: block;
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-.bar-track-vertical {
-  width: 100%;
-  height: 120px;
-  background: #f3f4f6;
-  border-radius: 6px;
-  position: relative;
-  overflow: hidden;
+.campaign-bar-container {
   display: flex;
-  flex-direction: column-reverse;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
 }
 
-.bar-fill-vertical {
-  transition: height 0.3s ease;
+.campaign-bar {
+  display: flex;
+  height: 24px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  overflow: hidden;
+  flex: 1;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.bar-fill-vertical.success {
-  background: linear-gradient(to top, #10b981, #34d399);
+.bar-segment {
+  height: 100%;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-.bar-fill-vertical.failed {
-  background: linear-gradient(to top, #ef4444, #f87171);
+.bar-segment.sent {
+  background: linear-gradient(90deg, #10b981, #34d399);
 }
 
-/* Pie Chart */
+.bar-segment.failed {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.bar-segment:hover {
+  filter: brightness(1.1);
+  transform: scaleY(1.05);
+}
+
+.campaign-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Enhanced Pie Chart */
 .pie-chart-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
+  padding: 20px 0;
 }
 
 .pie-chart-visual {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pie-chart {
@@ -348,6 +439,36 @@
   height: 100%;
   border-radius: 50%;
   position: relative;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.pie-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pie-total {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+}
+
+.pie-label {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
 }
 
 .pie-legend {
@@ -355,33 +476,34 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  max-width: 160px;
 }
 
-.legend-item {
+.pie-legend .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.pie-legend .legend-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pie-legend .legend-value {
   font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
 }
 
-.legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.legend-color.success { background: #10b981; }
-.legend-color.failed { background: #ef4444; }
-
-.legend-label {
-  flex: 1;
-  color: #374151;
-}
-
-.legend-value {
-  font-weight: 600;
-  color: #111827;
+.pie-legend .legend-label {
+  font-size: 11px;
+  color: #64748b;
 }
 
 /* Action & Activity Section */
@@ -840,6 +962,25 @@
     grid-column: span 1;
   }
   
+  .performance-chart-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  
+  .y-axis {
+    display: none;
+  }
+  
+  .campaign-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .campaign-info {
+    min-width: auto;
+  }
+  
   /* Page headers responsive */
   .page-header {
     padding: 20px;
@@ -893,6 +1034,16 @@
   .footer-nav-item {
     padding: 8px 12px;
     min-width: 60px;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .chart-legend {
+    align-self: flex-start;
   }
   
   /* Page headers responsive */

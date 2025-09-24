@@ -306,6 +306,16 @@ const DashboardView = ({ stats, onCompose, onViewCampaigns }) => {
               <TrendingUp className="chart-title-icon" />
               Campaign Performance
             </h3>
+            <div className="chart-legend">
+              <div className="legend-item">
+                <div className="legend-color sent"></div>
+                <span>Sent</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color failed"></div>
+                <span>Failed</span>
+              </div>
+            </div>
           </div>
           <PerformanceChart data={stats.performanceData} />
         </div>
@@ -397,34 +407,51 @@ const PerformanceChart = ({ data }) => {
 
   return (
     <div className="chart-container">
-      <div className="bar-chart-vertical">
-        {data.map((item, index) => {
-          const total = item.sent + item.failed;
-          const heightPercentage = maxValue > 0 ? (total / maxValue) * 100 : 0;
-          
-          return (
-            <div key={index} className="bar-chart-item">
-              <div className="bar-labels">
-                <span className="bar-label">{item.name}</span>
-                <span className="bar-value">{total} emails</span>
-              </div>
-              <div className="bar-track-vertical">
-                <div 
-                  className="bar-fill-vertical success"
-                  style={{ height: `${(item.sent / maxValue) * 100}%` }}
-                ></div>
-                <div 
-                  className="bar-fill-vertical failed"
-                  style={{ height: `${(item.failed / maxValue) * 100}%` }}
-                ></div>
-              </div>
-              <div className="bar-stats">
-                <span className="success-stat">{item.sent}✓</span>
-                <span className="failed-stat">{item.failed}✗</span>
-              </div>
+      <div className="performance-chart-grid">
+        <div className="y-axis">
+          {[100, 75, 50, 25, 0].map((value) => (
+            <div key={value} className="y-tick">
+              <span className="y-label">{Math.round((value / 100) * maxValue)}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+        
+        <div className="chart-content">
+          <div className="bar-chart-horizontal">
+            {data.map((item, index) => {
+              const total = item.sent + item.failed;
+              const sentPercentage = total > 0 ? (item.sent / total) * 100 : 0;
+              const failedPercentage = total > 0 ? (item.failed / total) * 100 : 0;
+              
+              return (
+                <div key={index} className="campaign-row">
+                  <div className="campaign-info">
+                    <span className="campaign-name">{item.name}</span>
+                    <span className="campaign-stats">
+                      {item.successRate}% success
+                    </span>
+                  </div>
+                  
+                  <div className="campaign-bar-container">
+                    <div className="campaign-bar">
+                      <div 
+                        className="bar-segment sent"
+                        style={{ width: `${sentPercentage}%` }}
+                        title={`${item.sent} sent`}
+                      ></div>
+                      <div 
+                        className="bar-segment failed"
+                        style={{ width: `${failedPercentage}%` }}
+                        title={`${item.failed} failed`}
+                      ></div>
+                    </div>
+                    <div className="campaign-total">{total}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -459,17 +486,25 @@ const DeliveryPieChart = ({ stats }) => {
             )`
           }}
         ></div>
+        <div className="pie-center">
+          <span className="pie-total">{total}</span>
+          <span className="pie-label">Total</span>
+        </div>
       </div>
       <div className="pie-legend">
         <div className="legend-item">
           <div className="legend-color success"></div>
-          <span className="legend-label">Successful</span>
-          <span className="legend-value">{successPercentage}%</span>
+          <div className="legend-details">
+            <span className="legend-value">{successPercentage}%</span>
+            <span className="legend-label">Successful</span>
+          </div>
         </div>
         <div className="legend-item">
           <div className="legend-color failed"></div>
-          <span className="legend-label">Failed</span>
-          <span className="legend-value">{failedPercentage}%</span>
+          <div className="legend-details">
+            <span className="legend-value">{failedPercentage}%</span>
+            <span className="legend-label">Failed</span>
+          </div>
         </div>
       </div>
     </div>
@@ -532,3 +567,4 @@ const ConfigPopup = ({ onConfigure, onClose }) => (
 );
 
 export default Inbox;
+
