@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Inbox as InboxIcon, Edit3, Settings, X, AlertCircle, BarChart3, TrendingUp, Users, Send, MailOpen, Clock, ArrowUp, ArrowDown, PieChart, Calendar, Target, Zap } from 'lucide-react';
 import EmailComposeWindow from './compose';
-import { ConfigurationHeader, ComposeHeader, CampaignHeader } from './EmailPageHeaders';
+import EmailPageHeaders, { ConfigurationHeader, ComposeHeader, CampaignHeader } from './EmailPageHeaders';
 import InboxContent from './inboxContent';
 import EmailConfiguration from './EmailConfiguration';
 import './inbox.css';

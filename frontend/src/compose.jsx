@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle, Calendar, X } from 'lucide-react';
 import './compose.css';
 
-const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) => {
+const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLoading: parentLoading }) => {
   const [excelFile, setExcelFile] = useState(null);
   const [subject, setSubject] = useState('');
   const [cc, setCc] = useState('');
@@ -11,7 +11,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [signature, setSignature] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -19,6 +19,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
   const editorRef = useRef(null);
   const excelFileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
+
+  // Use either parent loading state or local loading state
+  const isLoading = parentLoading || localLoading;
 
   // Clear success messages after 3 seconds
   useEffect(() => {
@@ -248,69 +251,79 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail }) =>
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', excelFile);
-    formData.append('subject', subject);
-    
-    let contentHTML = editorRef.current?.innerHTML || '';
-    contentHTML = `<pre style="white-space: pre-wrap;">${contentHTML}</pre>`;
-    contentHTML = contentHTML
-      .replace(/<div><br><\/div>/g, '<br>')
-      .replace(/<div><\/div>/g, '')
-      .replace(/<p><br><\/p>/g, '')
-      .replace(/<br><br><br>/g, '<br><br>')
-      .trim();
-    
-    let contentText = htmlToPlainText(contentHTML);
-    if (contentText && signature.trim()) {
-      contentText += `\n\n---\n${signature}`;
-      contentHTML += `<br><br>---<br><pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
-    } else if (signature.trim()) {
-      contentText = signature;
-      contentHTML = `<pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
-    }
-    
-    formData.append('content', contentText);
-    formData.append('contentHTML', contentHTML);
-    
-    if (cc) formData.append('cc', cc);
-    if (bcc) formData.append('bcc', bcc);
-    
-    // Add schedule information if this is a scheduled send
-    if (isScheduled) {
-      const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
-      formData.append('scheduledTime', scheduledDateTime.toISOString());
-    }
-    
-    attachments.forEach((file, index) => {
-      formData.append(`attachment${index}`, file);
-    });
+    // Set local loading state
+    setLocalLoading(true);
 
-    const result = await sendBulkEmail(formData, setIsLoading, showConfigPopup, isConfigured);
-
-    if (result.success) {
-      setErrors(prev => ({
-        ...prev,
-        successMessage: isScheduled ? 
-          `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
-          result.message,
-      }));
-      setExcelFile(null);
-      setSubject('');
-      setCc('');
-      setBcc('');
-      setAttachments([]);
-      setShowCc(false);
-      setShowBcc(false);
-      setScheduleDate('');
-      setScheduleTime('');
-      setShowScheduleModal(false);
-      setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined }));
-      if (editorRef.current) {
-        editorRef.current.innerHTML = '';
+    try {
+      const formData = new FormData();
+      formData.append('file', excelFile);
+      formData.append('subject', subject);
+      
+      let contentHTML = editorRef.current?.innerHTML || '';
+      contentHTML = `<pre style="white-space: pre-wrap;">${contentHTML}</pre>`;
+      contentHTML = contentHTML
+        .replace(/<div><br><\/div>/g, '<br>')
+        .replace(/<div><\/div>/g, '')
+        .replace(/<p><br><\/p>/g, '')
+        .replace(/<br><br><br>/g, '<br><br>')
+        .trim();
+      
+      let contentText = htmlToPlainText(contentHTML);
+      if (contentText && signature.trim()) {
+        contentText += `\n\n---\n${signature}`;
+        contentHTML += `<br><br>---<br><pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
+      } else if (signature.trim()) {
+        contentText = signature;
+        contentHTML = `<pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '<br>')}</pre>`;
       }
-    } else {
-      setErrors(prev => ({ ...prev, errorMessage: result.error }));
+      
+      formData.append('content', contentText);
+      formData.append('contentHTML', contentHTML);
+      
+      if (cc) formData.append('cc', cc);
+      if (bcc) formData.append('bcc', bcc);
+      
+      // Add schedule information if this is a scheduled send
+      if (isScheduled) {
+        const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+        formData.append('scheduledTime', scheduledDateTime.toISOString());
+      }
+      
+      attachments.forEach((file, index) => {
+        formData.append(`attachment${index}`, file);
+      });
+
+      const result = await sendBulkEmail(formData);
+
+      if (result.success) {
+        setErrors(prev => ({
+          ...prev,
+          successMessage: isScheduled ? 
+            `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
+            result.message,
+        }));
+        setExcelFile(null);
+        setSubject('');
+        setCc('');
+        setBcc('');
+        setAttachments([]);
+        setShowCc(false);
+        setShowBcc(false);
+        setScheduleDate('');
+        setScheduleTime('');
+        setShowScheduleModal(false);
+        setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined }));
+        if (editorRef.current) {
+          editorRef.current.innerHTML = '';
+        }
+      } else {
+        setErrors(prev => ({ ...prev, errorMessage: result.error }));
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, errorMessage: 'An error occurred while sending the email' }));
+    } finally {
+      // Clear local loading state
+      setLocalLoading(false);
     }
   };
 

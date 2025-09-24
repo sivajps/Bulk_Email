@@ -19,7 +19,7 @@ CORS(app)
 DB_CONFIG = {
     "dbname": "BulkEmail",
     "user": "postgres",
-    "password": "0303",
+    "password": "siva@1234",
     "host": "localhost",
     "port": "5432"
 }
