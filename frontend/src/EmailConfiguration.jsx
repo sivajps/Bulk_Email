@@ -56,6 +56,7 @@ const EmailConfiguration = ({ onConfigure }) => {
   };
 
   return (
+    
     <div className="configuration-container">
       <div className="configuration-card">
         <h2 className="configuration-title">Configure Your Email for bulk email</h2>
