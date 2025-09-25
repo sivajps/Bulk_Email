@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: inbox.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: inbox.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect } from 'react';
+import { Inbox as InboxIcon, Edit3, Settings, X, AlertCircle, BarChart3, TrendingUp, Users, Send, MailOpen, Clock, ArrowUp, ArrowDown, PieChart, Calendar, Target, Zap } from 'lucide-react';
+import EmailComposeWindow from './compose';
+import EmailPageHeaders, { ConfigurationHeader, ComposeHeader, CampaignHeader } from './EmailPageHeaders';
+import InboxContent from './inboxContent';
+import EmailConfiguration from './EmailConfiguration';
+import './inbox.css';
+
+/**
+ * Main inbox component managing the email application's navigation and content
+ * @component
+ * @returns {JSX.Element} Main application interface with navigation and content areas
+ */
+
+const Inbox = () => {
+  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [showConfigPopup, setShowConfigPopup] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalCampaigns: 0,
+    totalEmails: 0,
+    successRate: 0,
+    openRate: 0,
+    recentActivity: [],
+    performanceData: []
+  });
+
+  const menuItems = [
+    { name: 'Dashboard', icon: BarChart3 },
+    { name: 'Campaigns', icon: InboxIcon },
+    { name: 'Compose', icon: Edit3 },
+    { name: 'Configure', icon: Settings },
+  ];
+
+  useEffect(() => {
+    const checkBackendConnection = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/');
+        setIsBackendConnected(response.ok);
+        if (response.ok) {
+          fetchDashboardStats();
+        }
+      } catch {
+        setIsBackendConnected(false);
+      }
+    };
+    checkBackendConnection();
+  }, []);
+
+  useEffect(() => {
+    const configured = localStorage.getItem('emailConfigured');
+    setIsConfigured(configured === 'true');
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/recent_bulk');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success &amp;&amp; data.data) {
+          calculateStats(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const calculateStats = (bulkData) => {
+    const totalCampaigns = bulkData.length;
+    let totalEmails = 0;
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
+    bulkData.forEach(campaign => {
+      totalEmails += (campaign.success_count || 0) + (campaign.failed_count || 0);
+      totalSuccess += campaign.success_count || 0;
+      totalFailed += campaign.failed_count || 0;
+    });
+
+    const successRate = totalEmails > 0 ? ((totalSuccess / totalEmails) * 100) : 0;
+    const openRate = 65.2; // Simulated open rate data
+
+    // Generate performance data for charts
+    const performanceData = bulkData.slice(0, 5).map(campaign => ({
+      name: campaign.subject?.substring(0, 12) + '...',
+      sent: campaign.success_count || 0,
+      failed: campaign.failed_count || 0,
+      successRate: campaign.success_count &amp;&amp; campaign.failed_count ? 
+        Math.round((campaign.success_count / (campaign.success_count + campaign.failed_count)) * 100) : 0
+    }));
+
+    setDashboardStats({
+      totalCampaigns,
+      totalEmails,
+      successRate: Math.round(successRate),
+      openRate,
+      recentActivity: bulkData.slice(0, 4),
+      performanceData
+    });
+  };
+
+  const handleConfigure = (email, password) => {
+    setIsConfigured(true);
+    localStorage.setItem('emailConfigured', 'true');
+    setShowConfigPopup(false);
+  };
+
+  const handleConfigureRedirect = () => setActiveTab('Configure');
+
+  const sendBulkEmail = async (formData) => {
+    if (!isConfigured) {
+      setShowConfigPopup(true);
+      return { success: false, error: 'Email not configured' };
+    }
+
+    if (!formData.get('file')) {
+      return { success: false, error: 'Please upload an Excel file with email addresses' };
+    }
+
+    if (!formData.get('subject').trim()) {
+      return { success: false, error: 'Please enter email subject' };
+    }
+
+    if (!formData.get('content').trim() || formData.get('content') === '&lt;div>&lt;br>&lt;/div>') {
+      return { success: false, error: 'Please write email content' };
+    }
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch('http://localhost:5000/send_bulk', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        const results = result.results || {};
+        const sentCount = Object.values(results).filter(status => status.includes('sent')).length;
+        const failedCount = Object.values(results).filter(status => status.includes('failed')).length;
+
+        // Refresh stats after sending
+        fetchDashboardStats();
+
+        return {
+          success: true,
+          message: `✅ Bulk Email Sent Successfully!\n\n📧 Sent: ${sentCount} emails\n❌ Failed: ${failedCount} emails`,
+        };
+      } else {
+        return { success: false, error: result.message || 'Failed to send emails' };
+      }
+    } catch (error) {
+      if (error.message.includes('Failed to fetch')) {
+        return { success: false, error: 'Cannot connect to server.' };
+      }
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    &lt;div className="dashboard">
+      {!isBackendConnected &amp;&amp; (
+        &lt;div className="backend-error">
+          &lt;AlertCircle size={20} color="#ef4444" />
+          &lt;span>Cannot connect to backend server. Please ensure it is running.&lt;/span>
+        &lt;/div>
+      )}
+
+      {showConfigPopup &amp;&amp; (
+        &lt;ConfigPopup 
+          onConfigure={handleConfigureRedirect}
+          onClose={() => setShowConfigPopup(false)} 
+        />
+      )}
+
+      &lt;div className="main-content">
+        {/* Dashboard Tab - Has its own header */}
+        {activeTab === 'Dashboard' &amp;&amp; (
+          &lt;DashboardView 
+            stats={dashboardStats}
+            onCompose={() => setActiveTab('Compose')}
+            onViewCampaigns={() => setActiveTab('Campaigns')}
+          />
+        )}
+        
+        {/* Campaigns Tab */}
+        {activeTab === 'Campaigns' &amp;&amp; (
+          &lt;div className="content content-full">
+            &lt;CampaignHeader />
+            &lt;InboxContent setActiveTab={setActiveTab} />
+          &lt;/div>
+        )}
+        
+        {/* Compose Tab */}
+        {activeTab === 'Compose' &amp;&amp; (
+          &lt;div className="content content-full">
+            &lt;ComposeHeader />
+            &lt;EmailComposeWindow
+              isConfigured={isConfigured}
+              showConfigPopup={() => setShowConfigPopup(true)}
+              sendBulkEmail={sendBulkEmail}
+              isLoading={isLoading}
+            />
+          &lt;/div>
+        )}
+        
+        {/* Configure Tab */}
+        {activeTab === 'Configure' &amp;&amp; (
+          &lt;div className="content content-full">
+            &lt;ConfigurationHeader />
+            &lt;EmailConfiguration onConfigure={handleConfigure} />
+          &lt;/div>
+        )}
+      &lt;/div>
+
+      &lt;footer className="footer-nav">
+        &lt;nav className="footer-nav-container">
+          {menuItems.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.name;
+            return (
+              &lt;button
+                key={item.name}
+                onClick={() => setActiveTab(item.name)}
+                className={`footer-nav-item ${isActive ? 'footer-nav-item-active' : ''}`}
+              >
+                &lt;Icon className="footer-nav-icon" />
+                &lt;span className="footer-nav-text">{item.name}&lt;/span>
+              &lt;/button>
+            );
+          })}
+        &lt;/nav>
+      &lt;/footer>
+    &lt;/div>
+  );
+};
+
+/**
+ * Dashboard view component displaying analytics and statistics
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.stats - Dashboard statistics data
+ * @param {Function} props.onCompose - Function to navigate to compose tab
+ * @param {Function} props.onViewCampaigns - Function to navigate to campaigns tab
+ * @returns {JSX.Element} Dashboard view with charts and metrics
+ */
+const DashboardView = ({ stats, onCompose, onViewCampaigns }) => {
+  return (
+    &lt;div className="dashboard-wrapper">
+      {/* Header Section */}
+      &lt;div className="dashboard-header">
+        &lt;div className="header-content">
+          &lt;div>
+            &lt;h1 className="dashboard-title">
+              &lt;BarChart3 className="title-icon" />
+              Email Analytics Dashboard
+            &lt;/h1>
+            &lt;p className="dashboard-subtitle">Monitor your email campaign performance&lt;/p>
+          &lt;/div>
+          &lt;div className="header-stats">
+            &lt;div className="header-stat">
+              &lt;span className="stat-label">Active Campaigns&lt;/span>
+              &lt;span className="stat-value success">{stats.recentActivity.length}&lt;/span>
+            &lt;/div>
+            &lt;div className="header-stat">
+              &lt;span className="stat-label">Success Rate&lt;/span>
+              &lt;span className="stat-value success">{stats.successRate}%&lt;/span>
+            &lt;/div>
+          &lt;/div>
+        &lt;/div>
+      &lt;/div>
+
+      {/* Stats Grid */}
+      &lt;div className="stats-grid">
+        &lt;StatCard
+          type="primary"
+          icon={&lt;Send className="stat-icon" />}
+          title="Total Campaigns"
+          value={stats.totalCampaigns}
+          trend={{ value: 12, positive: true }}
+        />
+        &lt;StatCard
+          type="success"
+          icon={&lt;Users className="stat-icon" />}
+          title="Emails Sent"
+          value={stats.totalEmails.toLocaleString()}
+          trend={{ value: 8, positive: true }}
+        />
+        &lt;StatCard
+          type="warning"
+          icon={&lt;Target className="stat-icon" />}
+          title="Success Rate"
+          value={`${stats.successRate}%`}
+          trend={{ value: 5, positive: true }}
+        />
+        &lt;StatCard
+          type="info"
+          icon={&lt;MailOpen className="stat-icon" />}
+          title="Avg. Open Rate"
+          value={`${stats.openRate}%`}
+          trend={{ value: 3, positive: false }}
+        />
+      &lt;/div>
+
+      {/* Charts Section */}
+      &lt;div className="charts-section">
+        &lt;div className="chart-card large">
+          &lt;div className="chart-header">
+            &lt;h3 className="chart-title">
+              &lt;TrendingUp className="chart-title-icon" />
+              Campaign Performance
+            &lt;/h3>
+          &lt;/div>
+          &lt;PerformanceChart data={stats.performanceData} />
+        &lt;/div>
+        
+        &lt;div className="chart-card">
+          &lt;div className="chart-header">
+            &lt;h3 className="chart-title">
+              &lt;PieChart className="chart-title-icon" />
+              Delivery Stats
+            &lt;/h3>
+          &lt;/div>
+          &lt;DeliveryPieChart stats={stats} />
+        &lt;/div>
+      &lt;/div>
+
+      {/* Quick Actions &amp; Recent Activity */}
+      &lt;div className="action-activity-section">
+        &lt;div className="quick-actions-card">
+          &lt;div className="section-header">
+            &lt;h3 className="section-title">
+              &lt;Zap className="section-icon" />
+              Quick Actions
+            &lt;/h3>
+          &lt;/div>
+          &lt;div className="action-buttons-grid">
+            &lt;button className="action-btn primary" onClick={onCompose}>
+              &lt;Edit3 size={20} />
+              New Campaign
+            &lt;/button>
+            &lt;button className="action-btn secondary" onClick={onViewCampaigns}>
+              &lt;InboxIcon size={20} />
+              View Campaigns
+            &lt;/button>
+            &lt;button className="action-btn secondary">
+              &lt;BarChart3 size={20} />
+              Generate Report
+            &lt;/button>
+            &lt;button className="action-btn secondary">
+              &lt;Calendar size={20} />
+              Schedule Send
+            &lt;/button>
+          &lt;/div>
+        &lt;/div>
+
+        &lt;div className="recent-activity-card">
+          &lt;div className="section-header">
+            &lt;h3 className="section-title">
+              &lt;Clock className="section-icon" />
+              Recent Activity
+            &lt;/h3>
+          &lt;/div>
+          &lt;RecentActivityList activities={stats.recentActivity} />
+        &lt;/div>
+      &lt;/div>
+    &lt;/div>
+  );
+};
+
+/**
+ * Stat card component for displaying individual metrics
+ * @component
+ * @param {Object} props - Component props
+ * @param {string} props.type - Card type (primary, success, warning, info)
+ * @param {JSX.Element} props.icon - Icon element
+ * @param {string} props.title - Card title
+ * @param {string|number} props.value - Stat value
+ * @param {Object} props.trend - Trend data with value and direction
+ * @returns {JSX.Element} Individual statistic card
+ */
+const StatCard = ({ type, icon, title, value, trend }) => (
+  &lt;div className={`stat-card ${type}`}>
+    &lt;div className="stat-card-content">
+      &lt;div className="stat-info">
+        &lt;h3 className="stat-number">{value}&lt;/h3>
+        &lt;span className="stat-label">{title}&lt;/span>
+        &lt;div className={`stat-trend ${trend.positive ? 'positive' : 'negative'}`}>
+          {trend.positive ? &lt;ArrowUp size={14} /> : &lt;ArrowDown size={14} />}
+          {trend.value}% from last month
+        &lt;/div>
+      &lt;/div>
+      &lt;div className={`stat-icon-wrapper ${type}-bg`}>
+        {icon}
+      &lt;/div>
+    &lt;/div>
+  &lt;/div>
+);
+
+/**
+ * Performance chart component displaying campaign performance data
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array} props.data - Performance data array
+ * @returns {JSX.Element} Bar chart visualization
+ */
+const PerformanceChart = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      &lt;div className="empty-chart">
+        &lt;BarChart3 size={48} color="#9ca3af" />
+        &lt;p>No campaign data available&lt;/p>
+        &lt;p className="empty-chart-subtitle">Start sending campaigns to see analytics&lt;/p>
+      &lt;/div>
+    );
+  }
+
+  const maxValue = Math.max(...data.map(d => d.sent + d.failed));
+
+  return (
+    &lt;div className="chart-container">
+      &lt;div className="bar-chart-vertical">
+        {data.map((item, index) => {
+          const total = item.sent + item.failed;
+          const heightPercentage = maxValue > 0 ? (total / maxValue) * 100 : 0;
+          
+          return (
+            &lt;div key={index} className="bar-chart-item">
+              &lt;div className="bar-labels">
+                &lt;span className="bar-label">{item.name}&lt;/span>
+                &lt;span className="bar-value">{total} emails&lt;/span>
+              &lt;/div>
+              &lt;div className="bar-track-vertical">
+                &lt;div 
+                  className="bar-fill-vertical success"
+                  style={{ height: `${(item.sent / maxValue) * 100}%` }}
+                >&lt;/div>
+                &lt;div 
+                  className="bar-fill-vertical failed"
+                  style={{ height: `${(item.failed / maxValue) * 100}%` }}
+                >&lt;/div>
+              &lt;/div>
+              &lt;div className="bar-stats">
+                &lt;span className="success-stat">{item.sent}✓&lt;/span>
+                &lt;span className="failed-stat">{item.failed}✗&lt;/span>
+              &lt;/div>
+            &lt;/div>
+          );
+        })}
+      &lt;/div>
+    &lt;/div>
+  );
+};
+
+/**
+ * Delivery pie chart component showing success/failure rates
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.stats - Statistics data for pie chart
+ * @returns {JSX.Element} Pie chart visualization
+ */
+const DeliveryPieChart = ({ stats }) => {
+  const total = stats.totalEmails;
+  const success = Math.round((stats.successRate / 100) * total);
+  const failed = total - success;
+
+  if (total === 0) {
+    return (
+      &lt;div className="empty-chart">
+        &lt;PieChart size={48} color="#9ca3af" />
+        &lt;p>No delivery data&lt;/p>
+      &lt;/div>
+    );
+  }
+
+  const successPercentage = Math.round((success / total) * 100);
+  const failedPercentage = 100 - successPercentage;
+
+  return (
+    &lt;div className="pie-chart-container">
+      &lt;div className="pie-chart-visual">
+        &lt;div 
+          className="pie-chart" 
+          style={{
+            background: `conic-gradient(
+              #10b981 0% ${successPercentage}%,
+              #ef4444 ${successPercentage}% 100%
+            )`
+          }}
+        >&lt;/div>
+      &lt;/div>
+      &lt;div className="pie-legend">
+        &lt;div className="legend-item">
+          &lt;div className="legend-color success">&lt;/div>
+          &lt;span className="legend-label">Successful&lt;/span>
+          &lt;span className="legend-value">{successPercentage}%&lt;/span>
+        &lt;/div>
+        &lt;div className="legend-item">
+          &lt;div className="legend-color failed">&lt;/div>
+          &lt;span className="legend-label">Failed&lt;/span>
+          &lt;span className="legend-value">{failedPercentage}%&lt;/span>
+        &lt;/div>
+      &lt;/div>
+    &lt;/div>
+  );
+};
+
+/**
+ * Recent activity list component
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array} props.activities - Array of recent activities
+ * @returns {JSX.Element} List of recent activities
+ */
+const RecentActivityList = ({ activities }) => {
+  if (!activities || activities.length === 0) {
+    return (
+      &lt;div className="empty-activity">
+        &lt;InboxIcon size={32} color="#9ca3af" />
+        &lt;p>No recent activity&lt;/p>
+        &lt;p className="empty-activity-subtitle">Your campaigns will appear here&lt;/p>
+      &lt;/div>
+    );
+  }
+
+  return (
+    &lt;div className="activity-list">
+      {activities.map((activity, index) => (
+        &lt;div key={index} className="activity-item">
+          &lt;div className="activity-icon-wrapper">
+            &lt;Send size={16} />
+          &lt;/div>
+          &lt;div className="activity-content">
+            &lt;div className="activity-title">{activity.subject || 'Untitled Campaign'}&lt;/div>
+            &lt;div className="activity-meta">
+              &lt;span className="activity-date">
+                {new Date(activity.sent_time || activity.timestamp).toLocaleDateString()}
+              &lt;/span>
+              &lt;span className="activity-stats">
+                {activity.success_count || 0} sent • {activity.failed_count || 0} failed
+              &lt;/span>
+            &lt;/div>
+          &lt;/div>
+          &lt;div className={`activity-status ${(activity.success_count || 0) > (activity.failed_count || 0) ? 'success' : 'warning'}`}>
+            {(activity.success_count || 0) > (activity.failed_count || 0) ? '✓' : '⚠'}
+          &lt;/div>
+        &lt;/div>
+      ))}
+    &lt;/div>
+  );
+};
+
+/**
+ * Configuration popup component
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.onConfigure - Function to handle configuration
+ * @param {Function} props.onClose - Function to close popup
+ * @returns {JSX.Element} Configuration prompt popup
+ */
+const ConfigPopup = ({ onConfigure, onClose }) => (
+  &lt;div className="config-popup-overlay">
+    &lt;div className="config-popup-simple">
+      &lt;div className="config-popup-header">
+        &lt;h2>Configure Your Email&lt;/h2>
+        &lt;button className="config-popup-close" onClick={onClose}>&lt;X size={20} />&lt;/button>
+      &lt;/div>
+      &lt;div className="config-popup-content-simple">
+        &lt;p>You need to configure your email before sending messages.&lt;/p>
+        &lt;button className="config-button-simple" onClick={onConfigure}>
+          Go to Configuration
+        &lt;/button>
+      &lt;/div>
+    &lt;/div>
+  &lt;/div>
+);
+
+export default Inbox;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-BulkEmailSender.html">BulkEmailSender</a></li><li><a href="module-Main.html">Main</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-BulkEmailSender-Components.html">Components</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CampaignHeader">CampaignHeader</a></li><li><a href="global.html#ComposeHeader">ComposeHeader</a></li><li><a href="global.html#ConfigPopup">ConfigPopup</a></li><li><a href="global.html#ConfigurationHeader">ConfigurationHeader</a></li><li><a href="global.html#DashboardView">DashboardView</a></li><li><a href="global.html#DeliveryPieChart">DeliveryPieChart</a></li><li><a href="global.html#DetailsPopup">DetailsPopup</a></li><li><a href="global.html#EmailComposeWindow">EmailComposeWindow</a></li><li><a href="global.html#EmailConfiguration">EmailConfiguration</a></li><li><a href="global.html#Inbox">Inbox</a></li><li><a href="global.html#InboxContent">InboxContent</a></li><li><a href="global.html#PerformanceChart">PerformanceChart</a></li><li><a href="global.html#RecentActivityList">RecentActivityList</a></li><li><a href="global.html#StatCard">StatCard</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 25 2025 20:00:03 GMT+0530 (India Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,3 +1,9 @@
+/**
+ * Main application component that serves as the entry point for the React app
+ * @component
+ * @returns {JSX.Element} The main App component rendering the Inbox component
+ */
+
 import React from 'react';
 // import EmailDashboard from './dashboard';
 import './App.css';

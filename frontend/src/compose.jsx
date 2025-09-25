@@ -2,6 +2,17 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle, Calendar, X } from 'lucide-react';
 import './compose.css';
 
+/**
+ * Email composition window component for creating and sending bulk emails
+ * @component
+ * @param {Object} props - Component props
+ * @param {boolean} props.isConfigured - Whether email is configured
+ * @param {Function} props.showConfigPopup - Function to show configuration popup
+ * @param {Function} props.sendBulkEmail - Function to send bulk email
+ * @param {boolean} props.isLoading - Parent loading state
+ * @returns {JSX.Element} Email composition interface
+ */
+
 const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLoading: parentLoading }) => {
   const [excelFile, setExcelFile] = useState(null);
   const [subject, setSubject] = useState('');

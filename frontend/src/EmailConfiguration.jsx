@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Inbox, Edit3, Settings, X, AlertCircle, Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
 import './EmailConfiguration.css';
 
+/**
+ * Component for configuring email settings and app passwords
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.onConfigure - Callback function when configuration is successful
+ * @returns {JSX.Element} Email configuration form interface
+ */
+
 const EmailConfiguration = ({ onConfigure }) => {
   const [email, setEmail] = useState('');
   const [appPassword, setAppPassword] = useState('');

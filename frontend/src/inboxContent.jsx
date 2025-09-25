@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Inbox, Edit3, Settings, X, AlertCircle, Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
 import './inboxContent.css';
 
+/**
+ * Component for displaying campaign history and details
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.setActiveTab - Function to set active tab
+ * @returns {JSX.Element} Campaign history and details interface
+ */
 const InboxContent = ({ setActiveTab }) => {
   const [recentBulks, setRecentBulks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +140,14 @@ const InboxContent = ({ setActiveTab }) => {
   );
 };
 
+  /**
+   * Details popup component for displaying campaign specifics
+   * @component
+   * @param {Object} props - Component props
+   * @param {Object} props.bulk - Bulk email campaign data
+   * @param {Function} props.onClose - Function to close popup
+   * @returns {JSX.Element} Campaign details modal
+   */
     const DetailsPopup = ({ bulk, onClose }) => {
     const totalEmails = (bulk.sent_emails?.length || 0) + (bulk.failed_emails?.length || 0);
 

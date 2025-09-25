@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: compose.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: compose.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FileSpreadsheet, Paperclip, Clock, Send, AlertCircle, Edit3, CheckCircle, Calendar, X } from 'lucide-react';
+import './compose.css';
+
+/**
+ * Email composition window component for creating and sending bulk emails
+ * @component
+ * @param {Object} props - Component props
+ * @param {boolean} props.isConfigured - Whether email is configured
+ * @param {Function} props.showConfigPopup - Function to show configuration popup
+ * @param {Function} props.sendBulkEmail - Function to send bulk email
+ * @param {boolean} props.isLoading - Parent loading state
+ * @returns {JSX.Element} Email composition interface
+ */
+
+const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLoading: parentLoading }) => {
+  const [excelFile, setExcelFile] = useState(null);
+  const [subject, setSubject] = useState('');
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+  const [signature, setSignature] = useState('');
+  const [localLoading, setLocalLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const editorRef = useRef(null);
+  const excelFileInputRef = useRef(null);
+  const attachmentInputRef = useRef(null);
+
+  // Use either parent loading state or local loading state
+  const isLoading = parentLoading || localLoading;
+
+  // Clear success messages after 3 seconds
+  useEffect(() => {
+    if (errors.successMessage) {
+      const timer = setTimeout(() => {
+        setErrors(prev => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errors.successMessage]);
+
+  // Get min and max dates (today to 10 days from now)
+  const getDateLimits = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 10);
+    
+    return {
+      min: today.toISOString().split('T')[0],
+      max: maxDate.toISOString().split('T')[0]
+    };
+  };
+
+  // Get minimum time for today
+  const getMinTime = () => {
+    const now = new Date();
+    const selectedDate = new Date(scheduleDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (selectedDate.getTime() === today.getTime()) {
+      // If selected date is today, minimum time is current time + 5 minutes
+      const minTime = new Date(now.getTime() + 5 * 60000);
+      return minTime.toTimeString().slice(0, 5);
+    }
+    return '00:00';
+  };
+
+  // Function to convert HTML to plain text while preserving all whitespace and line breaks
+  const htmlToPlainText = (html) => {
+    if (!html || typeof html !== 'string') return '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    let text = tempDiv.textContent || tempDiv.innerText || '';
+    text = text.replace(/(\r\n|\n|\r)/gm, '');
+    text = text.replace(/&lt;(p|div|br)[^>]*>/gi, '\n');
+    text = text.replace(/&lt;\/(p|div)>/gi, '\n');
+    text = text.replace(/&lt;[^>]+>/g, '');
+    text = text.replace(/\u00A0/g, ' ');
+    text = text.replace(/\n\s*\n+/g, '\n');
+    return text;
+  };
+
+  // Initialize contentEditable
+  useEffect(() => {
+    if (editorRef.current &amp;&amp; !isLoading) {
+      editorRef.current.focus();
+    }
+  }, [isLoading]);
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!excelFile) {
+      newErrors.excelFile = 'Please upload an Excel file with email addresses';
+    }
+
+    if (!subject.trim()) {
+      newErrors.subject = 'Please enter email subject';
+    }
+
+    const contentHTML = editorRef.current?.innerHTML || '';
+    const contentText = htmlToPlainText(contentHTML);
+    
+    if (!contentText || contentHTML === '&lt;div>&lt;br>&lt;/div>' || contentHTML === '&lt;p>&lt;br>&lt;/p>') {
+      newErrors.content = 'Please write email content';
+    }
+
+    if (attachments.length > 5) {
+      newErrors.attachments = 'Cannot attach more than 5 files';
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    attachments.forEach((file) => {
+      if (file.size > maxSize) {
+        newErrors.attachments = newErrors.attachments || [];
+        newErrors.attachments.push(`File "${file.name}" exceeds 10MB limit`);
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Validate schedule form
+  const validateScheduleForm = () => {
+    if (!scheduleDate) {
+      setErrors(prev => ({ ...prev, schedule: 'Please select a date' }));
+      return false;
+    }
+
+    if (!scheduleTime) {
+      setErrors(prev => ({ ...prev, schedule: 'Please select a time' }));
+      return false;
+    }
+
+    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+    const now = new Date();
+    
+    if (scheduledDateTime &lt;= now) {
+      setErrors(prev => ({ ...prev, schedule: 'Scheduled time must be in the future' }));
+      return false;
+    }
+
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 10);
+    
+    if (scheduledDateTime > maxDate) {
+      setErrors(prev => ({ ...prev, schedule: 'Cannot schedule more than 10 days in advance' }));
+      return false;
+    }
+
+    setErrors(prev => ({ ...prev, schedule: undefined }));
+    return true;
+  };
+
+  // Excel upload handler
+  const handleExcelUpload = (e) => {
+    e.stopPropagation();
+    const file = e.target.files[0];
+    if (!file) return;
+
+    e.target.value = '';
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+
+    if (!validExtensions.includes(fileExtension)) {
+      setErrors(prev => ({ ...prev, excelFile: 'Please upload a valid Excel file (.xlsx, .xls) or CSV file' }));
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, excelFile: 'File size must be less than 10MB' }));
+      return;
+    }
+
+    setExcelFile(file);
+    setErrors(prev => ({ ...prev, excelFile: undefined }));
+  };
+
+  const triggerExcelUpload = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isLoading || !excelFileInputRef.current) return;
+    excelFileInputRef.current.click();
+  }, [isLoading]);
+
+  // Attachment upload handler
+  const handleAttachmentUpload = (e) => {
+    e.stopPropagation();
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    e.target.value = '';
+    const validExtensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.zip'];
+    const maxSize = 10 * 1024 * 1024;
+    const maxFiles = 5;
+
+    const newAttachments = [];
+    const attachmentErrors = [];
+
+    files.forEach((file) => {
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      if (!validExtensions.includes(fileExtension)) {
+        attachmentErrors.push(`File "${file.name}" has an unsupported extension`);
+        return;
+      }
+
+      if (file.size > maxSize) {
+        attachmentErrors.push(`File "${file.name}" exceeds 10MB limit`);
+        return;
+      }
+
+      if (newAttachments.length + attachments.length >= maxFiles) {
+        attachmentErrors.push('Cannot attach more than 5 files');
+        return;
+      }
+
+      newAttachments.push(file);
+    });
+
+    if (attachmentErrors.length > 0) {
+      setErrors(prev => ({ ...prev, attachments: attachmentErrors }));
+      return;
+    }
+
+    setAttachments(prev => [...prev, ...newAttachments]);
+    setErrors(prev => ({
+      ...prev,
+      attachments: undefined,
+      successMessage: `Attached ${newAttachments.length} file(s) successfully`,
+    }));
+  };
+
+  const triggerAttachmentUpload = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isLoading || !attachmentInputRef.current) return;
+    attachmentInputRef.current.click();
+  }, [isLoading]);
+
+  // Remove specific attachment
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setErrors(prev => ({
+      ...prev,
+      attachments: undefined,
+      successMessage: 'Attachment removed',
+    }));
+  };
+
+  // Reset form after successful send
+  const resetForm = () => {
+    setExcelFile(null);
+    setSubject('');
+    setCc('');
+    setBcc('');
+    setAttachments([]);
+    setShowCc(false);
+    setShowBcc(false);
+    setScheduleDate('');
+    setScheduleTime('');
+    setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined, schedule: undefined }));
+    if (editorRef.current) {
+      editorRef.current.innerHTML = '';
+    }
+  };
+
+  // Send bulk email handler
+  const handleSendBulkEmail = async (isScheduled = false) => {
+    if (!validateForm()) {
+      return;
+    }
+
+    // Set local loading state
+    setLocalLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', excelFile);
+      formData.append('subject', subject);
+      
+      let contentHTML = editorRef.current?.innerHTML || '';
+      contentHTML = `&lt;pre style="white-space: pre-wrap;">${contentHTML}&lt;/pre>`;
+      contentHTML = contentHTML
+        .replace(/&lt;div>&lt;br>&lt;\/div>/g, '&lt;br>')
+        .replace(/&lt;div>&lt;\/div>/g, '')
+        .replace(/&lt;p>&lt;br>&lt;\/p>/g, '')
+        .replace(/&lt;br>&lt;br>&lt;br>/g, '&lt;br>&lt;br>')
+        .trim();
+      
+      let contentText = htmlToPlainText(contentHTML);
+      if (contentText &amp;&amp; signature.trim()) {
+        contentText += `\n\n---\n${signature}`;
+        contentHTML += `&lt;br>&lt;br>---&lt;br>&lt;pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '&lt;br>')}&lt;/pre>`;
+      } else if (signature.trim()) {
+        contentText = signature;
+        contentHTML = `&lt;pre style="white-space: pre-wrap;">${signature.replace(/\n/g, '&lt;br>')}&lt;/pre>`;
+      }
+      
+      formData.append('content', contentText);
+      formData.append('contentHTML', contentHTML);
+      
+      if (cc) formData.append('cc', cc);
+      if (bcc) formData.append('bcc', bcc);
+      
+      // Add schedule information if this is a scheduled send
+      if (isScheduled) {
+        const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+        formData.append('scheduledTime', scheduledDateTime.toISOString());
+        formData.append('isScheduled', 'true');
+      }
+      
+      attachments.forEach((file, index) => {
+        formData.append(`attachment${index}`, file);
+      });
+
+      const result = await sendBulkEmail(formData);
+
+      if (result.success) {
+        const successMessage = isScheduled ? 
+          `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
+          result.message;
+        
+        setErrors(prev => ({
+          ...prev,
+          successMessage,
+          errorMessage: undefined
+        }));
+        
+        // Close schedule modal automatically if this was a scheduled send
+        if (isScheduled) {
+          setShowScheduleModal(false);
+        }
+        
+        // Reset the form
+        resetForm();
+        
+      } else {
+        setErrors(prev => ({ 
+          ...prev, 
+          errorMessage: result.error,
+          successMessage: undefined 
+        }));
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setErrors(prev => ({ 
+        ...prev, 
+        errorMessage: 'An error occurred while sending the email',
+        successMessage: undefined 
+      }));
+    } finally {
+      // Clear local loading state
+      setLocalLoading(false);
+    }
+  };
+
+  // Open schedule modal
+  const openScheduleModal = () => {
+    if (!validateForm()) {
+      return;
+    }
+    
+    const { min } = getDateLimits();
+    setScheduleDate(min);
+    
+    const now = new Date();
+    const minTime = new Date(now.getTime() + 5 * 60000);
+    setScheduleTime(minTime.toTimeString().slice(0, 5));
+    
+    setShowScheduleModal(true);
+  };
+
+  // Confirm scheduled send
+  const confirmScheduledSend = () => {
+    if (!validateScheduleForm()) {
+      return;
+    }
+    handleSendBulkEmail(true);
+  };
+
+  // Close schedule modal
+  const closeScheduleModal = () => {
+    setShowScheduleModal(false);
+    setScheduleDate('');
+    setScheduleTime('');
+    setErrors(prev => ({ ...prev, schedule: undefined }));
+  };
+
+  // Formatting function
+  const applyFormatting = (command) => {
+    if (!editorRef.current || isLoading) return;
+    try {
+      editorRef.current.focus();
+      if (typeof document.execCommand !== 'function') {
+        throw new Error('execCommand not available');
+      }
+      
+      setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) {
+          const formattedSpan = document.createElement('span');
+          formattedSpan.style.cssText = 
+            command === 'bold' ? 'font-weight: bold;' :
+            command === 'italic' ? 'font-style: italic;' :
+            command === 'underline' ? 'text-decoration: underline;' : '';
+          
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          range.insertNode(formattedSpan);
+          range.setStart(formattedSpan, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          formattedSpan.focus();
+        } else {
+          const hasSelection = !selection.getRangeAt(0).collapsed;
+          if (hasSelection) {
+            document.execCommand(command, false, null);
+          } else {
+            const range = selection.getRangeAt(0);
+            const formattedSpan = document.createElement('span');
+            formattedSpan.style.cssText = 
+              command === 'bold' ? 'font-weight: bold;' :
+              command === 'italic' ? 'font-style: italic;' :
+              command === 'underline' ? 'text-decoration: underline;' : '';
+            
+            range.insertNode(formattedSpan);
+            range.setStart(formattedSpan, 0);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+        
+        editorRef.current.focus();
+      }, 50);
+    } catch (error) {
+      console.error('Formatting error:', error);
+    }
+  };
+
+  // Edit signature
+  const editSignature = () => {
+    const newSignature = prompt('Enter your email signature:', signature);
+    if (newSignature !== null) {
+      setSignature(newSignature);
+    }
+  };
+
+  const { min: minDate, max: maxDate } = getDateLimits();
+
+  return (
+    &lt;div className="email-compose-container">
+      {isLoading &amp;&amp; (
+        &lt;div className="loading-overlay">
+          Processing... Please wait
+        &lt;/div>
+      )}
+
+      {/* Error/Success Messages */}
+      {(errors.excelFile || errors.subject || errors.content || errors.attachments || errors.successMessage || errors.errorMessage) &amp;&amp; (
+        &lt;div className="compose-error-container">
+          {errors.excelFile &amp;&amp; (
+            &lt;div className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{errors.excelFile}&lt;/span>
+            &lt;/div>
+          )}
+          {errors.subject &amp;&amp; (
+            &lt;div className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{errors.subject}&lt;/span>
+            &lt;/div>
+          )}
+          {errors.content &amp;&amp; (
+            &lt;div className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{errors.content}&lt;/span>
+            &lt;/div>
+          )}
+          {errors.attachments &amp;&amp; Array.isArray(errors.attachments) &amp;&amp; errors.attachments.map((error, index) => (
+            &lt;div key={index} className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{error}&lt;/span>
+            &lt;/div>
+          ))}
+          {errors.attachments &amp;&amp; !Array.isArray(errors.attachments) &amp;&amp; (
+            &lt;div className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{errors.attachments}&lt;/span>
+            &lt;/div>
+          )}
+          {errors.successMessage &amp;&amp; (
+            &lt;div className="compose-success-message">
+              &lt;CheckCircle size={16} />
+              &lt;span>{errors.successMessage}&lt;/span>
+            &lt;/div>
+          )}
+          {errors.errorMessage &amp;&amp; (
+            &lt;div className="compose-error-message">
+              &lt;AlertCircle size={16} />
+              &lt;span>{errors.errorMessage}&lt;/span>
+            &lt;/div>
+          )}
+        &lt;/div>
+      )}
+
+      {/* Form Fields */}
+      &lt;div className="compose-fields">
+        &lt;div className="field-row">
+          &lt;label className="field-label">Recipients &lt;span className="required">*&lt;/span>&lt;/label>
+          &lt;div className="field-input-container">
+            &lt;label 
+              className={`excel-upload ${isLoading ? 'disabled' : ''}`} 
+              title={excelFile ? `Uploaded: ${excelFile.name}` : "Upload Excel with Email Addresses"}
+              onClick={triggerExcelUpload}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  triggerExcelUpload(e);
+                }
+              }}
+            >
+              &lt;FileSpreadsheet className="excel-icon" size={20} color="#059669" />
+              &lt;input
+                ref={excelFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
+                onChange={handleExcelUpload}
+                onClick={(e) => e.stopPropagation()}
+              />
+              &lt;span>{excelFile ? `${excelFile.name}` : 'Upload Excel File'}&lt;/span>
+            &lt;/label>
+
+            &lt;div className="cc-bcc-buttons">
+              &lt;button
+                onClick={() => setShowCc(!showCc)}
+                className={`cc-bcc-button ${showCc ? 'active' : ''}`}
+                disabled={isLoading}
+              >
+                Cc
+              &lt;/button>
+              &lt;button
+                onClick={() => setShowBcc(!showBcc)}
+                className={`cc-bcc-button ${showBcc ? 'active' : ''}`}
+                disabled={isLoading}
+              >
+                Bcc
+              &lt;/button>
+            &lt;/div>
+          &lt;/div>
+        &lt;/div>
+
+        {showCc &amp;&amp; (
+          &lt;div className="field-row">
+            &lt;label className="field-label">Cc&lt;/label>
+            &lt;input
+              type="text"
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              className="field-input full-width"
+              placeholder="Carbon copy (separate with commas)"
+              disabled={isLoading}
+            />
+          &lt;/div>
+        )}
+
+        {showBcc &amp;&amp; (
+          &lt;div className="field-row">
+            &lt;label className="field-label">Bcc&lt;/label>
+            &lt;input
+              type="text"
+              value={bcc}
+              onChange={(e) => setBcc(e.target.value)}
+              className="field-input full-width"
+              placeholder="Blind carbon copy (separate with commas)"
+              disabled={isLoading}
+            />
+          &lt;/div>
+        )}
+
+        &lt;div className="field-row subject-row">
+          &lt;label className="field-label">Subject &lt;span className="required">*&lt;/span>&lt;/label>
+          &lt;input
+            type="text"
+            value={subject}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (e.target.value.trim()) {
+                setErrors(prev => ({ ...prev, subject: undefined }));
+              }
+            }}
+            className={`field-input full-width ${errors.subject ? 'error' : ''}`}
+            placeholder="Enter subject"
+            disabled={isLoading}
+          />
+        &lt;/div>
+
+        {attachments.length > 0 &amp;&amp; (
+          &lt;div className="field-row">
+            &lt;label className="field-label">Attachments&lt;/label>
+            &lt;div className="field-input-container attachment-list">
+              {attachments.map((file, index) => (
+                &lt;div key={index} className="attachment-item">
+                  &lt;span className="attachment-name">{file.name}&lt;/span>
+                  &lt;button
+                    onClick={() => removeAttachment(index)}
+                    className="remove-attachment-button"
+                    title="Remove attachment"
+                    disabled={isLoading}
+                  >
+                    ✕
+                  &lt;/button>
+                &lt;/div>
+              ))}
+            &lt;/div>
+          &lt;/div>
+        )}
+      &lt;/div>
+
+      &lt;div className="formatting-toolbar">
+        &lt;div className="toolbar-content">
+          &lt;div className="toolbar-group">
+            &lt;button
+              onClick={() => applyFormatting('bold')}
+              className="toolbar-button"
+              title="Bold (select text to format or click to start bold)"
+              disabled={isLoading}
+              aria-label="Bold text"
+            >
+              &lt;strong style={{ fontSize: '12px', fontWeight: 'bold' }}>B&lt;/strong>
+            &lt;/button>
+            &lt;button
+              onClick={() => applyFormatting('italic')}
+              className="toolbar-button"
+              title="Italic (select text to format or click to start italic)"
+              disabled={isLoading}
+              aria-label="Italic text"
+            >
+              &lt;em style={{ fontSize: '12px', fontStyle: 'italic' }}>I&lt;/em>
+            &lt;/button>
+            &lt;button
+              onClick={() => applyFormatting('underline')}
+              className="toolbar-button"
+              title="Underline (select text to format or click to start underline)"
+              disabled={isLoading}
+              aria-label="Underline text"
+            >
+              &lt;u style={{ fontSize: '12px', textDecoration: 'underline' }}>U&lt;/u>
+            &lt;/button>
+          &lt;/div>
+        &lt;/div>
+      &lt;/div>
+
+      &lt;div className="content-area">
+        &lt;div
+          ref={editorRef}
+          className={`content-editable ${errors.content ? 'error' : ''} ${!isLoading ? 'focused' : ''}`}
+          contentEditable={!isLoading}
+          suppressContentEditableWarning={true}
+          style={{ whiteSpace: 'pre-wrap' }}
+          placeholder="Write your email content here..."
+          onInput={(e) => {
+            const contentHTML = e.currentTarget.innerHTML || '';
+            const contentText = htmlToPlainText(contentHTML);
+            if (contentText &amp;&amp; contentHTML !== '&lt;div>&lt;br>&lt;/div>' &amp;&amp; contentHTML !== '&lt;p>&lt;br>&lt;/p>') {
+              setErrors(prev => ({ ...prev, content: undefined }));
+            }
+          }}
+          onFocus={(e) => {
+            e.currentTarget.classList.add('focused');
+            const selection = window.getSelection();
+            if (selection &amp;&amp; selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              if (range.collapsed &amp;&amp; e.currentTarget.innerHTML === '') {
+                range.setStart(e.currentTarget, 0);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+              }
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.classList.remove('focused');
+            if (e.currentTarget.innerHTML.trim() === '' || e.currentTarget.innerHTML === '&lt;br>' || e.currentTarget.innerHTML === '&lt;p>&lt;br>&lt;/p>') {
+              e.currentTarget.innerHTML = '';
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' &amp;&amp; !e.shiftKey) {
+              e.preventDefault();
+              document.execCommand('insertHTML', false, '&lt;br>&lt;br>');
+              e.currentTarget.focus();
+              return false;
+            }
+          }}
+        />
+      &lt;/div>
+
+      &lt;div className="bottom-toolbar">
+        &lt;div className="toolbar-left">
+          &lt;button
+            onClick={() => handleSendBulkEmail(false)}
+            className="send-button"
+            disabled={isLoading}
+          >
+            {isLoading &amp;&amp; !showScheduleModal ? 'Sending...' : 'Send'}
+          &lt;/button>
+          &lt;button
+            onClick={openScheduleModal}
+            className="send-button"
+            disabled={isLoading}
+            style={{ backgroundColor: '#16a34a' }}
+          >
+            &lt;Clock size={16} style={{ marginRight: '4px' }} />
+            Schedule Send
+          &lt;/button>
+          &lt;div className="insert-buttons">
+            &lt;label 
+              className="toolbar-button" 
+              title="Attach files"
+              onClick={triggerAttachmentUpload}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  triggerAttachmentUpload(e);
+                }
+              }}
+            >
+              &lt;Paperclip size={18} />
+              &lt;input
+                ref={attachmentInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                style={{ display: 'none' }}
+                onChange={handleAttachmentUpload}
+                onClick={(e) => e.stopPropagation()}
+              />
+            &lt;/label>
+            &lt;button
+              onClick={editSignature}
+              className="toolbar-button"
+              title="Edit signature"
+              disabled={isLoading}
+            >
+              &lt;Edit3 size={18} />
+            &lt;/button>
+          &lt;/div>
+        &lt;/div>
+      &lt;/div>
+
+      {/* Schedule Modal */}
+      {showScheduleModal &amp;&amp; (
+        &lt;div className="schedule-modal-overlay">
+          &lt;div className="schedule-modal">
+            &lt;div className="schedule-modal-header">
+              &lt;h3 className="schedule-modal-title">
+                &lt;Calendar size={20} />
+                Schedule Email
+              &lt;/h3>
+              &lt;button
+                onClick={closeScheduleModal}
+                className="schedule-modal-close"
+              >
+                &lt;X size={18} />
+              &lt;/button>
+            &lt;/div>
+
+            &lt;div className="schedule-modal-content">
+              &lt;div className="schedule-field">
+                &lt;label className="schedule-field-label">
+                  Select Date
+                &lt;/label>
+                &lt;input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={minDate}
+                  max={maxDate}
+                  className="schedule-date-input"
+                />
+                &lt;p className="schedule-field-hint">
+                  You can schedule up to 10 days in advance
+                &lt;/p>
+              &lt;/div>
+
+              &lt;div className="schedule-field">
+                &lt;label className="schedule-field-label">
+                  Select Time
+                &lt;/label>
+                &lt;input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  min={scheduleDate === minDate ? getMinTime() : '00:00'}
+                  className="schedule-time-input"
+                />
+                &lt;p className="schedule-field-hint">
+                  {scheduleDate === minDate 
+                    ? 'Minimum 5 minutes from now for today' 
+                    : 'Any time for future dates'
+                  }
+                &lt;/p>
+              &lt;/div>
+
+              {scheduleDate &amp;&amp; scheduleTime &amp;&amp; (
+                &lt;div className="schedule-preview">
+                  &lt;p className="schedule-preview-text">
+                    &lt;strong>Scheduled for:&lt;/strong>&lt;br />
+                    {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })} at {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  &lt;/p>
+                &lt;/div>
+              )}
+
+              {errors.schedule &amp;&amp; (
+                &lt;div className="schedule-error">
+                  &lt;AlertCircle size={16} />
+                  &lt;span>{errors.schedule}&lt;/span>
+                &lt;/div>
+              )}
+            &lt;/div>
+
+            &lt;div className="schedule-modal-actions">
+              &lt;button
+                onClick={closeScheduleModal}
+                className="schedule-cancel-btn"
+              >
+                Cancel
+              &lt;/button>
+              &lt;button
+                onClick={confirmScheduledSend}
+                className="schedule-confirm-btn"
+                disabled={!scheduleDate || !scheduleTime || isLoading}
+              >
+                {isLoading &amp;&amp; showScheduleModal ? 'Scheduling...' : 'Schedule Email'}
+              &lt;/button>
+            &lt;/div>
+          &lt;/div>
+        &lt;/div>
+      )}
+    &lt;/div>
+  );
+};
+
+export default EmailComposeWindow;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-BulkEmailSender.html">BulkEmailSender</a></li><li><a href="module-Main.html">Main</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-BulkEmailSender-Components.html">Components</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CampaignHeader">CampaignHeader</a></li><li><a href="global.html#ComposeHeader">ComposeHeader</a></li><li><a href="global.html#ConfigPopup">ConfigPopup</a></li><li><a href="global.html#ConfigurationHeader">ConfigurationHeader</a></li><li><a href="global.html#DashboardView">DashboardView</a></li><li><a href="global.html#DeliveryPieChart">DeliveryPieChart</a></li><li><a href="global.html#DetailsPopup">DetailsPopup</a></li><li><a href="global.html#EmailComposeWindow">EmailComposeWindow</a></li><li><a href="global.html#EmailConfiguration">EmailConfiguration</a></li><li><a href="global.html#Inbox">Inbox</a></li><li><a href="global.html#InboxContent">InboxContent</a></li><li><a href="global.html#PerformanceChart">PerformanceChart</a></li><li><a href="global.html#RecentActivityList">RecentActivityList</a></li><li><a href="global.html#StatCard">StatCard</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 25 2025 20:00:03 GMT+0530 (India Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

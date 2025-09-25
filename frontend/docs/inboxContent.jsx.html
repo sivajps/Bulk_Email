@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: inboxContent.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: inboxContent.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect } from 'react';
+import { Inbox, Edit3, Settings, X, AlertCircle, Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
+import './inboxContent.css';
+
+/**
+ * Component for displaying campaign history and details
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.setActiveTab - Function to set active tab
+ * @returns {JSX.Element} Campaign history and details interface
+ */
+const InboxContent = ({ setActiveTab }) => {
+  const [recentBulks, setRecentBulks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBulk, setSelectedBulk] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/recent_bulk");
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        if (data.success) {
+          setRecentBulks(data.data || []);
+        } else {
+          setError('Failed to load campaigns data');
+        }
+      } catch (err) {
+        console.error("Error fetching recent bulk:", err);
+        setError('Cannot connect to server. Please ensure the backend is running.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, []);
+
+  if (loading) {
+    return (
+      &lt;div className="inbox-container">
+        &lt;div className="dashboard-center">
+          &lt;Loader className="animate-spin" size={40} />
+          &lt;p className="loading-text">Loading recent campaigns...&lt;/p>
+        &lt;/div>
+      &lt;/div>
+    );
+  }
+
+  if (error) {
+    return (
+      &lt;div className="inbox-container">
+        &lt;div className="error-state">
+          &lt;AlertCircle size={48} className="error-icon" />
+          &lt;h3 className="error-title">Failed to load campaigns&lt;/h3>
+          &lt;p className="error-text">{error}&lt;/p>
+          &lt;button 
+            className="retry-button" 
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          &lt;/button>
+        &lt;/div>
+      &lt;/div>
+    );
+  }
+
+  if (recentBulks.length === 0) {
+    return (
+      &lt;div className="inbox-container">
+        &lt;div className="empty-state">
+          &lt;Inbox className="empty-state-icon" size={64} />
+          &lt;h3 className="empty-state-title">No campaigns yet&lt;/h3>
+          &lt;p className="empty-state-text">
+            Start sending bulk emails to see your campaign history here.
+          &lt;/p>
+          &lt;button 
+            className="cta-button" 
+            onClick={() => setActiveTab('Compose')}
+          >
+            Start Sending
+          &lt;/button>
+        &lt;/div>
+      &lt;/div>
+    );
+  }
+
+  return (
+    &lt;div className="inbox-container">
+      &lt;div className="dashboard-container">
+        &lt;h2 className="dashboard-title">Recent Email Campaigns&lt;/h2>
+
+        &lt;div className="campaign-list">
+          {recentBulks.map((bulk) => (
+            &lt;div
+              key={bulk.id || bulk.timestamp}
+              className="campaign-card"
+              onClick={() => setSelectedBulk(bulk)}
+            >
+              &lt;div className="campaign-header">
+                &lt;Mail className="campaign-icon" />
+                &lt;div className="campaign-info">
+                  &lt;h3 className="campaign-subject">{bulk.subject || 'Untitled Campaign'}&lt;/h3>
+                  &lt;p className="campaign-sender">
+                    From: &lt;strong>{bulk.sender_email}&lt;/strong>
+                  &lt;/p>
+                &lt;/div>
+              &lt;/div>
+              &lt;div className="campaign-meta">
+                &lt;span className="campaign-date">
+                  {new Date(bulk.sent_time || bulk.timestamp).toLocaleString()}
+                &lt;/span>
+                &lt;span className="campaign-recipient-count">
+                  {bulk.total_emails || (bulk.success_count + bulk.failed_count)} recipients
+                &lt;/span>
+              &lt;/div>
+              &lt;div className="campaign-stats">
+                &lt;span className="success stat-item">
+                  &lt;CheckCircle size={16} /> {bulk.success_count || 0} Sent
+                &lt;/span>
+                &lt;span className="failed stat-item">
+                  &lt;XCircle size={16} /> {bulk.failed_count || 0} Failed
+                &lt;/span>
+              &lt;/div>
+            &lt;/div>
+          ))}
+        &lt;/div>
+
+        {selectedBulk &amp;&amp; (
+          &lt;DetailsPopup 
+            bulk={selectedBulk} 
+            onClose={() => setSelectedBulk(null)} 
+          />
+        )}
+      &lt;/div>
+    &lt;/div>
+  );
+};
+
+  /**
+   * Details popup component for displaying campaign specifics
+   * @component
+   * @param {Object} props - Component props
+   * @param {Object} props.bulk - Bulk email campaign data
+   * @param {Function} props.onClose - Function to close popup
+   * @returns {JSX.Element} Campaign details modal
+   */
+    const DetailsPopup = ({ bulk, onClose }) => {
+    const totalEmails = (bulk.sent_emails?.length || 0) + (bulk.failed_emails?.length || 0);
+
+    return (
+        &lt;div className="details-popup-overlay" onClick={onClose}>
+        &lt;div className="details-popup" onClick={(e) => e.stopPropagation()}>
+            &lt;div className="details-header">
+            &lt;h3>📧 {bulk.subject || 'Untitled Campaign'}&lt;/h3>
+            &lt;button className="close-btn" onClick={onClose}>
+                &lt;X size={20} />
+            &lt;/button>
+            &lt;/div>
+            
+            &lt;div className="details-content">
+            &lt;div className="details-meta">
+                &lt;p>&lt;strong>Sender:&lt;/strong> {bulk.sender_email}&lt;/p>
+                &lt;p>&lt;strong>Date:&lt;/strong> {new Date(bulk.sent_time || bulk.timestamp).toLocaleString()}&lt;/p>
+                &lt;p>&lt;strong>Total Recipients:&lt;/strong> {totalEmails}&lt;/p>
+            &lt;/div>
+
+            &lt;div className="details-section">
+                &lt;h4>Email Content&lt;/h4>
+                {bulk.content_html ? (
+                &lt;div
+                    className="email-content-preview"
+                    style={{
+                    border: '1px solid #e5e7eb',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#f9fafb',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: bulk.content_html }}
+                />
+                ) : bulk.content ? (
+                &lt;pre
+                    className="email-content-preview"
+                    style={{
+                    border: '1px solid #e5e7eb',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#f9fafb',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                    }}
+                >
+                    {bulk.content}
+                &lt;/pre>
+                ) : (
+                &lt;p className="no-content">No content available&lt;/p>
+                )}
+            &lt;/div>
+
+            &lt;div className="details-section">
+                &lt;h4>✅ Successfully Sent ({bulk.sent_emails?.length || 0})&lt;/h4>
+                {bulk.sent_emails &amp;&amp; bulk.sent_emails.length > 0 ? (
+                &lt;div className="emails-list">
+                    {bulk.sent_emails.slice(0, 10).map((email, index) => (
+                    &lt;div key={index} className="email-item success">
+                        &lt;CheckCircle size={14} /> {email}
+                    &lt;/div>
+                    ))}
+                    {bulk.sent_emails.length > 10 &amp;&amp; (
+                    &lt;p className="more-emails">+{bulk.sent_emails.length - 10} more emails&lt;/p>
+                    )}
+                &lt;/div>
+                ) : (
+                &lt;p className="no-emails">No successful deliveries&lt;/p>
+                )}
+            &lt;/div>
+
+            &lt;div className="details-section">
+                &lt;h4>❌ Failed Deliveries ({bulk.failed_emails?.length || 0})&lt;/h4>
+                {bulk.failed_emails &amp;&amp; bulk.failed_emails.length > 0 ? (
+                &lt;div className="emails-list">
+                    {bulk.failed_emails.slice(0, 10).map((email, index) => (
+                    &lt;div key={index} className="email-item failed">
+                        &lt;XCircle size={14} /> {email}
+                    &lt;/div>
+                    ))}
+                    {bulk.failed_emails.length > 10 &amp;&amp; (
+                    &lt;p className="more-emails">+{bulk.failed_emails.length - 10} more emails&lt;/p>
+                    )}
+                &lt;/div>
+                ) : (
+                &lt;p className="no-emails">No failed deliveries&lt;/p>
+                )}
+            &lt;/div>
+
+            &lt;div className="details-actions">
+                &lt;button className="action-btn secondary" onClick={onClose}>
+                Close
+                &lt;/button>
+            &lt;/div>
+            &lt;/div>
+        &lt;/div>
+        &lt;/div>
+    );
+    };
+
+
+export default InboxContent;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-BulkEmailSender.html">BulkEmailSender</a></li><li><a href="module-Main.html">Main</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-BulkEmailSender-Components.html">Components</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CampaignHeader">CampaignHeader</a></li><li><a href="global.html#ComposeHeader">ComposeHeader</a></li><li><a href="global.html#ConfigPopup">ConfigPopup</a></li><li><a href="global.html#ConfigurationHeader">ConfigurationHeader</a></li><li><a href="global.html#DashboardView">DashboardView</a></li><li><a href="global.html#DeliveryPieChart">DeliveryPieChart</a></li><li><a href="global.html#DetailsPopup">DetailsPopup</a></li><li><a href="global.html#EmailComposeWindow">EmailComposeWindow</a></li><li><a href="global.html#EmailConfiguration">EmailConfiguration</a></li><li><a href="global.html#Inbox">Inbox</a></li><li><a href="global.html#InboxContent">InboxContent</a></li><li><a href="global.html#PerformanceChart">PerformanceChart</a></li><li><a href="global.html#RecentActivityList">RecentActivityList</a></li><li><a href="global.html#StatCard">StatCard</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 25 2025 20:00:03 GMT+0530 (India Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -6,6 +6,12 @@ import InboxContent from './inboxContent';
 import EmailConfiguration from './EmailConfiguration';
 import './inbox.css';
 
+/**
+ * Main inbox component managing the email application's navigation and content
+ * @component
+ * @returns {JSX.Element} Main application interface with navigation and content areas
+ */
+
 const Inbox = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [showConfigPopup, setShowConfigPopup] = useState(false);
@@ -240,6 +246,15 @@ const Inbox = () => {
   );
 };
 
+/**
+ * Dashboard view component displaying analytics and statistics
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.stats - Dashboard statistics data
+ * @param {Function} props.onCompose - Function to navigate to compose tab
+ * @param {Function} props.onViewCampaigns - Function to navigate to campaigns tab
+ * @returns {JSX.Element} Dashboard view with charts and metrics
+ */
 const DashboardView = ({ stats, onCompose, onViewCampaigns }) => {
   return (
     <div className="dashboard-wrapper">
@@ -364,6 +379,17 @@ const DashboardView = ({ stats, onCompose, onViewCampaigns }) => {
   );
 };
 
+/**
+ * Stat card component for displaying individual metrics
+ * @component
+ * @param {Object} props - Component props
+ * @param {string} props.type - Card type (primary, success, warning, info)
+ * @param {JSX.Element} props.icon - Icon element
+ * @param {string} props.title - Card title
+ * @param {string|number} props.value - Stat value
+ * @param {Object} props.trend - Trend data with value and direction
+ * @returns {JSX.Element} Individual statistic card
+ */
 const StatCard = ({ type, icon, title, value, trend }) => (
   <div className={`stat-card ${type}`}>
     <div className="stat-card-content">
@@ -382,6 +408,13 @@ const StatCard = ({ type, icon, title, value, trend }) => (
   </div>
 );
 
+/**
+ * Performance chart component displaying campaign performance data
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array} props.data - Performance data array
+ * @returns {JSX.Element} Bar chart visualization
+ */
 const PerformanceChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
@@ -430,6 +463,13 @@ const PerformanceChart = ({ data }) => {
   );
 };
 
+/**
+ * Delivery pie chart component showing success/failure rates
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.stats - Statistics data for pie chart
+ * @returns {JSX.Element} Pie chart visualization
+ */
 const DeliveryPieChart = ({ stats }) => {
   const total = stats.totalEmails;
   const success = Math.round((stats.successRate / 100) * total);
@@ -476,6 +516,13 @@ const DeliveryPieChart = ({ stats }) => {
   );
 };
 
+/**
+ * Recent activity list component
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array} props.activities - Array of recent activities
+ * @returns {JSX.Element} List of recent activities
+ */
 const RecentActivityList = ({ activities }) => {
   if (!activities || activities.length === 0) {
     return (
@@ -514,6 +561,14 @@ const RecentActivityList = ({ activities }) => {
   );
 };
 
+/**
+ * Configuration popup component
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.onConfigure - Function to handle configuration
+ * @param {Function} props.onClose - Function to close popup
+ * @returns {JSX.Element} Configuration prompt popup
+ */
 const ConfigPopup = ({ onConfigure, onClose }) => (
   <div className="config-popup-overlay">
     <div className="config-popup-simple">

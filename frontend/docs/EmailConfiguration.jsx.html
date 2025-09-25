@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: EmailConfiguration.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: EmailConfiguration.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect } from 'react';
+import { Inbox, Edit3, Settings, X, AlertCircle, Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
+import './EmailConfiguration.css';
+
+/**
+ * Component for configuring email settings and app passwords
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.onConfigure - Callback function when configuration is successful
+ * @returns {JSX.Element} Email configuration form interface
+ */
+
+const EmailConfiguration = ({ onConfigure }) => {
+  const [email, setEmail] = useState('');
+  const [appPassword, setAppPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email || !appPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const response = await fetch('http://localhost:5000/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          app_password: appPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.verify) {
+        setSuccess(data.message || 'Email configured successfully!');
+        localStorage.setItem('emailConfigured', 'true');
+        localStorage.setItem('userEmail', email);
+        if (onConfigure) onConfigure(email, appPassword);
+      } else {
+        setError(data.message || 'Failed to verify email configuration');
+      }
+    } catch (err) {
+      setError('Network error: Could not connect to server');
+      console.error('Configuration error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    
+    &lt;div className="configuration-container">
+      &lt;div className="configuration-card">
+        &lt;h2 className="configuration-title">Configure Your Email for bulk email&lt;/h2>
+        &lt;p className="configuration-subtitle">Send emails efficiently with your email account&lt;/p>
+
+        &lt;div className="configuration-instructions">
+          &lt;h3 className="instructions-title">Before you continue&lt;/h3>
+          &lt;ol className="instructions-list">
+            &lt;li>
+              &lt;strong>Turn on 2-Step Verification&lt;/strong>&lt;br />
+              &lt;p className="text-sm text-gray-600">Enable 2-Step Verification in your &lt;a href="https://myaccount.google.com/security" target="_blank" className="text-blue-600 hover:underline font-medium">Google Account settings&lt;/a>&lt;/p>
+            &lt;/li>
+            &lt;li>
+              &lt;strong>Generate App Password&lt;/strong>&lt;br />
+              &lt;p className="text-sm text-gray-600">Go to &lt;a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-blue-600 hover:underline font-medium">App Passwords&lt;/a> and generate a new password&lt;/p>
+            &lt;/li>
+            &lt;li>
+              &lt;strong>Select App &amp; Device&lt;/strong>&lt;br />
+              Select Apps: Mail and Device: Other (BulkEmail)
+            &lt;/li>
+            &lt;li>
+              &lt;strong>Copy &amp; Paste Password&lt;/strong>&lt;br />
+              Copy the 16-character app password and paste it in the field below
+            &lt;/li>
+          &lt;/ol>
+        &lt;/div>
+
+        &lt;hr className="configuration-divider" />
+
+        &lt;form onSubmit={handleSubmit} className="configuration-form">
+          {error &amp;&amp; &lt;div className="error-message">{error}&lt;/div>}
+          {success &amp;&amp; &lt;div className="success-message">{success}&lt;/div>}
+          
+          &lt;div className="configuration-field">
+            &lt;label className="configuration-label">Your Email&lt;/label>
+            &lt;input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="configuration-input"
+              placeholder="your.email@gmail.com"
+              required
+              disabled={isLoading}
+            />
+          &lt;/div>
+
+          &lt;div className="configuration-field">
+            &lt;label className="configuration-label">App Password&lt;/label>
+            &lt;input
+              type="password"
+              value={appPassword}
+              onChange={(e) => setAppPassword(e.target.value)}
+              className="configuration-input"
+              placeholder="16-character app password"
+              required
+              disabled={isLoading}
+            />
+          &lt;/div>
+
+          &lt;button 
+            type="submit" 
+            className="configuration-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Verifying...' : 'Configure'}
+          &lt;/button>
+        &lt;/form>
+      &lt;/div>
+    &lt;/div>
+  );
+};
+
+export default EmailConfiguration;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-BulkEmailSender.html">BulkEmailSender</a></li><li><a href="module-Main.html">Main</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-BulkEmailSender-Components.html">Components</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CampaignHeader">CampaignHeader</a></li><li><a href="global.html#ComposeHeader">ComposeHeader</a></li><li><a href="global.html#ConfigPopup">ConfigPopup</a></li><li><a href="global.html#ConfigurationHeader">ConfigurationHeader</a></li><li><a href="global.html#DashboardView">DashboardView</a></li><li><a href="global.html#DeliveryPieChart">DeliveryPieChart</a></li><li><a href="global.html#DetailsPopup">DetailsPopup</a></li><li><a href="global.html#EmailComposeWindow">EmailComposeWindow</a></li><li><a href="global.html#EmailConfiguration">EmailConfiguration</a></li><li><a href="global.html#Inbox">Inbox</a></li><li><a href="global.html#InboxContent">InboxContent</a></li><li><a href="global.html#PerformanceChart">PerformanceChart</a></li><li><a href="global.html#RecentActivityList">RecentActivityList</a></li><li><a href="global.html#StatCard">StatCard</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 25 2025 20:00:03 GMT+0530 (India Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

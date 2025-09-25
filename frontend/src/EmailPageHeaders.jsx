@@ -1,7 +1,12 @@
 import React from 'react';
 import { Mail, Settings, Target, BarChart3, Users, Send, CheckCircle } from 'lucide-react';
 
-// Header component for Email Configuration page
+/**
+ * Header component for Email Configuration page
+ * @component
+ * @returns {JSX.Element} Configuration page header
+ */
+
 const ConfigurationHeader = () => {
   return (
     <div className="page-header configuration-header">
@@ -18,7 +23,12 @@ const ConfigurationHeader = () => {
   );
 };
 
-// Header component for Compose Email page
+/**
+ * Header component for Compose Email page
+ * @component
+ * @returns {JSX.Element} Compose page header
+ */
+
 const ComposeHeader = () => {
   return (
     <div className="page-header compose-header">
@@ -35,7 +45,11 @@ const ComposeHeader = () => {
   );
 };
 
-// Header component for Campaign Management page
+/**
+ * Header component for Campaign Management page
+ * @component
+ * @returns {JSX.Element} Campaign management page header
+ */
 const CampaignHeader = () => {
   return (
     <div className="page-header campaign-header">
