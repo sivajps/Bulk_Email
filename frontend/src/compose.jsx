@@ -245,6 +245,23 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
     }));
   };
 
+  // Reset form after successful send
+  const resetForm = () => {
+    setExcelFile(null);
+    setSubject('');
+    setCc('');
+    setBcc('');
+    setAttachments([]);
+    setShowCc(false);
+    setShowBcc(false);
+    setScheduleDate('');
+    setScheduleTime('');
+    setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined, schedule: undefined }));
+    if (editorRef.current) {
+      editorRef.current.innerHTML = '';
+    }
+  };
+
   // Send bulk email handler
   const handleSendBulkEmail = async (isScheduled = false) => {
     if (!validateForm()) {
@@ -287,6 +304,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
       if (isScheduled) {
         const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
         formData.append('scheduledTime', scheduledDateTime.toISOString());
+        formData.append('isScheduled', 'true');
       }
       
       attachments.forEach((file, index) => {
@@ -296,31 +314,38 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
       const result = await sendBulkEmail(formData);
 
       if (result.success) {
+        const successMessage = isScheduled ? 
+          `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
+          result.message;
+        
         setErrors(prev => ({
           ...prev,
-          successMessage: isScheduled ? 
-            `Email scheduled for ${new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString()}` : 
-            result.message,
+          successMessage,
+          errorMessage: undefined
         }));
-        setExcelFile(null);
-        setSubject('');
-        setCc('');
-        setBcc('');
-        setAttachments([]);
-        setShowCc(false);
-        setShowBcc(false);
-        setScheduleDate('');
-        setScheduleTime('');
-        setShowScheduleModal(false);
-        setErrors(prev => ({ ...prev, excelFile: undefined, subject: undefined, content: undefined }));
-        if (editorRef.current) {
-          editorRef.current.innerHTML = '';
+        
+        // Close schedule modal automatically if this was a scheduled send
+        if (isScheduled) {
+          setShowScheduleModal(false);
         }
+        
+        // Reset the form
+        resetForm();
+        
       } else {
-        setErrors(prev => ({ ...prev, errorMessage: result.error }));
+        setErrors(prev => ({ 
+          ...prev, 
+          errorMessage: result.error,
+          successMessage: undefined 
+        }));
       }
     } catch (error) {
-      setErrors(prev => ({ ...prev, errorMessage: 'An error occurred while sending the email' }));
+      console.error('Error sending email:', error);
+      setErrors(prev => ({ 
+        ...prev, 
+        errorMessage: 'An error occurred while sending the email',
+        successMessage: undefined 
+      }));
     } finally {
       // Clear local loading state
       setLocalLoading(false);
@@ -349,6 +374,14 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
       return;
     }
     handleSendBulkEmail(true);
+  };
+
+  // Close schedule modal
+  const closeScheduleModal = () => {
+    setShowScheduleModal(false);
+    setScheduleDate('');
+    setScheduleTime('');
+    setErrors(prev => ({ ...prev, schedule: undefined }));
   };
 
   // Formatting function
@@ -674,7 +707,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
             className="send-button"
             disabled={isLoading}
           >
-            {isLoading ? 'Sending...' : 'Send'}
+            {isLoading && !showScheduleModal ? 'Sending...' : 'Send'}
           </button>
           <button
             onClick={openScheduleModal}
@@ -732,7 +765,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
                 Schedule Email
               </h3>
               <button
-                onClick={() => setShowScheduleModal(false)}
+                onClick={closeScheduleModal}
                 className="schedule-modal-close"
               >
                 <X size={18} />
@@ -804,7 +837,7 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
 
             <div className="schedule-modal-actions">
               <button
-                onClick={() => setShowScheduleModal(false)}
+                onClick={closeScheduleModal}
                 className="schedule-cancel-btn"
               >
                 Cancel
@@ -812,9 +845,9 @@ const EmailComposeWindow = ({ isConfigured, showConfigPopup, sendBulkEmail, isLo
               <button
                 onClick={confirmScheduledSend}
                 className="schedule-confirm-btn"
-                disabled={!scheduleDate || !scheduleTime}
+                disabled={!scheduleDate || !scheduleTime || isLoading}
               >
-                Schedule Email
+                {isLoading && showScheduleModal ? 'Scheduling...' : 'Schedule Email'}
               </button>
             </div>
           </div>
