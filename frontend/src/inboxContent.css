@@ -100,7 +100,7 @@
   color: #dc2626;
 }
 
-/* Details Popup */
+/* Details Popup - FIXED OVERLAP */
 .details-popup-overlay {
   position: fixed;
   top: 0;
@@ -112,25 +112,34 @@
   justify-content: center;
   align-items: center;
   z-index: 2000;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .details-popup {
   background: #fff;
   border-radius: 16px;
-  padding: 20px;
   max-width: 700px;
   width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
+  /* Fixed height calculation to prevent footer overlap */
+  max-height: calc(100vh - 120px); /* Account for footer (80px) + padding */
+  min-height: 400px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.2);
   position: relative;
+  margin-bottom: 80px; /* Ensure space for footer */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .details-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  padding: 7px 7px 15px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .close-btn {
@@ -138,12 +147,23 @@
   border: none;
   cursor: pointer;
   color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .details-content {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .details-meta p {
@@ -167,6 +187,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 200px; /* Limit height for better scrolling */
+  overflow-y: auto;
 }
 
 .email-item {
@@ -196,6 +218,10 @@
 .details-actions {
   display: flex;
   justify-content: flex-end;
+  padding: 15px 20px;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -235,6 +261,11 @@
   margin: 10px 0;
 }
 
+.empty-state-icon {
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
 .error-text, .empty-state-text {
   font-size: 14px;
   color: #6b7280;
@@ -254,6 +285,32 @@
 
 .retry-button:hover, .cta-button:hover {
   background: #4f46e5;
+}
+
+.dashboard-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.loading-text {
+  margin-top: 12px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.no-content, .no-emails {
+  color: #9ca3af;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+  background: #f9fafb;
+  border-radius: 8px;
 }
 
 /* Responsive Design for InboxContent */
@@ -295,10 +352,15 @@
     font-size: 12px;
   }
 
+  .details-popup-overlay {
+    padding: 10px;
+  }
+
   .details-popup {
     width: 95%;
     max-height: calc(100vh - 100px);
     padding: 15px;
+    margin-bottom: 80px; /* Maintain footer space on mobile */
   }
 
   .details-header h3 {
@@ -343,9 +405,15 @@
     font-size: 11px;
   }
 
+  .details-popup-overlay {
+    padding: 5px;
+  }
+
   .details-popup {
     width: 98%;
     padding: 10px;
+    max-height: calc(100vh - 90px);
+    margin-bottom: 80px; /* Footer space on small mobile */
   }
 
   .details-header h3 {

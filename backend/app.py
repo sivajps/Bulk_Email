@@ -70,8 +70,7 @@ def get_recent_bulk():
         cur.execute("""
             SELECT id, subject, sender_email, sent_time, success_count, failed_count, content, content_html
             FROM bulk_summary
-            ORDER BY sent_time DESC
-            LIMIT 6;
+            ORDER BY sent_time DESC;
         """)
         bulk_rows = cur.fetchall()
 
