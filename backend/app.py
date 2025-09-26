@@ -51,6 +51,32 @@ def get_db_connection():
 def home():
     return "<h2>Bulk Email API is running!</h2>", 200
 
+#---------------------- Verify ---------------------------#
+@app.route("/verify", methods=["POST"])
+def verify():
+    if os.path.exists("credentials.pkl"):
+        with open("credentials.pkl", "rb") as f:
+            creds = pickle.load(f)
+        return jsonify({
+            "verify": True,
+            "message": f"Already configured for {creds['email']}"
+        }), 200
+
+    data = request.json
+    email = data.get("email")
+    app_password = data.get("app_password")
+
+    if not email or not app_password:
+        return jsonify({
+            "success": False,
+            "message": "Email or App Password required"
+        }), 400
+
+    # Save credentials
+    with open("credentials.pkl", "wb") as f:
+        pickle.dump({"email": email, "app_password": app_password}, f)
+
+    return jsonify({"success": True, "message": f"Configured for {email}"}), 200
 
 # ------------------- Send Bulk Emails ------------------- #
 @app.route("/send_bulk", methods=["POST"])
