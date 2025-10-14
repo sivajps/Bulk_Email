@@ -655,7 +655,7 @@
 /* Header variants - ONLY for page headers */
 .page-header.configuration-header {
   background: linear-gradient(135deg, #d63131 0%, #ed7b7bb0 100%);
-  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 10px 25px rgba(231, 79, 79, 0.3);
 }
 
 .page-header.compose-header {
